@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Home - GreenTamilNadu{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Hero Banner -->
+    <div class="hero-banner">
+        <h1>Welcome to GreenTamilNadu</h1>
+        <p>AI-Powered Environmental Monitoring and Tree Recommendation System for Tamil Nadu Cities</p>
+        <div class="hero-badges">
+            <div class="badge">Real-time AQI Index Monitoring</div>
+            <div class="badge">Satellite Image Analysis</div>
+            <div class="badge">Smart Tree Recommendations</div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        {% for stat in stats %}
+        <div class="stat-card">
+            <div class="stat-icon {{ stat.color }}">
+                {% if stat.icon == 'MapPin' %}📍
+                {% elif stat.icon == 'Wind' %}💨
+                {% elif stat.icon == 'TreePine' %}🌲
+                {% elif stat.icon == 'TrendingUp' %}📈
+                {% endif %}
+            </div>
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Features Section -->
+    <div class="content-card">
+        <h3 class="card-title">Key Features</h3>
+        <div class="grid-3">
+            <div>
+                <h4 style="font-weight: 600; margin-bottom: 8px;">🌍 Real-time Monitoring</h4>
+                <p style="font-size: 14px; color: #666;">Monitor air quality across 5 areas in Madurai with live AQI Index data and 7-day trends.</p>
+            </div>
+            <div>
+                <h4 style="font-weight: 600; margin-bottom: 8px;">🛰️ Satellite Analysis</h4>
+                <p style="font-size: 14px; color: #666;">AI-powered image segmentation to identify free land areas suitable for plantation.</p>
+            </div>
+            <div>
+                <h4 style="font-weight: 600; margin-bottom: 8px;">🌳 Smart Recommendations</h4>
+                <p style="font-size: 14px; color: #666;">Get AI-suggested trees based on current pollution levels and environmental conditions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Start -->
+    <div class="content-card">
+        <h3 class="card-title">Quick Start</h3>
+        <div class="grid-2">
+            <div style="padding: 20px; background-color: #f0fdf4; border-radius: 8px;">
+                <h4 style="font-weight: 600; margin-bottom: 12px;">📊 View Area Analysis</h4>
+                <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Analyze satellite imagery and identify plantation zones for specific areas.</p>
+                <button class="btn btn-primary" onclick="navigateTo('/area-analysis')">Go to Analysis →</button>
+            </div>
+            <div style="padding: 20px; background-color: #f0f9ff; border-radius: 8px;">
+                <h4 style="font-weight: 600; margin-bottom: 12px;">🌳 Check AQI & Trees</h4>
+                <p style="font-size: 14px; color: #666; margin-bottom: 16px;">Monitor real-time air quality and get recommended trees for each area.</p>
+                <button class="btn btn-primary" onclick="navigateTo('/aqi-trees')">Check Now →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function navigateTo(url) {
+        window.location.href = url;
+    }
+</script>
+{% endblock %}

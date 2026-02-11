@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}AQI & Trees - GreenTamilNadu{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 style="font-size: 28px; font-weight: bold; margin-bottom: 8px;">AQI Index & Tree Recommendations</h2>
+        <p style="color: #666;">Real-time air quality monitoring and AI-powered tree suggestions for Tamil Nadu cities</p>
+    </div>
+
+    <div id="error-message" class="alert alert-error hidden"></div>
+
+    <!-- City Picker and AQI Index Trend - Side by Side -->
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+        <!-- Left: City Selection -->
+        <div class="content-card">
+            <label class="form-label">Select City</label>
+            <select id="area-select" class="form-select" onchange="loadAreaData()">
+                {% for area in areas %}
+                <option value="{{ area.id }}" {% if loop.first %}selected{% endif %}>{{ area.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <!-- Current AQI Index Display -->
+            <div id="aqi-box" style="padding: 24px; border-radius: 12px; text-align: center; margin-top: 24px;">
+                <p style="font-size: 12px; font-weight: 500; margin-bottom: 8px;">Current AQI Index</p>
+                <p id="aqi-value" style="font-size: 56px; font-weight: bold; margin-bottom: 8px;">-</p>
+                <span id="aqi-status" style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; color: white;"></span>
+                <p id="aqi-time" style="font-size: 11px; color: #999; margin-top: 12px;">Last updated: -</p>
+            </div>
+        </div>
+
+        <!-- Right: Trend Chart -->
+        <div class="content-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <h3 class="card-title">📈 7-Day AQI Index Trend</h3>
+            </div>
+            <div id="trend-chart-container" style="display: flex; align-items: flex-end; gap: 10px; height: 250px; justify-content: space-around;">
+                <!-- Bars will be added by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="hidden">
+        <div class="content-card">
+            <div style="text-align: center; padding: 40px;">
+                <div class="spinner"></div>
+                <p style="font-size: 18px; font-weight: 500; margin-top: 16px;">Loading air quality data...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tree Recommendations -->
+    <div id="trees-section" class="hidden">
+        <div class="content-card">
+            <h3 class="card-title">🌳 Recommended Trees</h3>
+            <div id="trees-grid" class="grid-2">
+                <!-- Trees will be added by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- AQI Levels Reference -->
+    <div class="content-card">
+        <h3 class="card-title">Understanding AQI Index Levels</h3>
+        <div class="grid-3">
+            <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 1</p>
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #dcfce7; color: #15803d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Good</span>
+                <p style="font-size: 12px; color: #666;">Air quality is satisfactory</p>
+            </div>
+            <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 2</p>
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fef3c7; color: #b45309; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Fair</span>
+                <p style="font-size: 12px; color: #666;">Air quality acceptable</p>
+            </div>
+            <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 3</p>
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fed7aa; color: #92400e; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Moderate</span>
+                <p style="font-size: 12px; color: #666;">Unhealthy for groups</p>
+            </div>
+            <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 4</p>
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fecaca; color: #7f1d1d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Poor</span>
+                <p style="font-size: 12px; color: #666;">Everyone may feel effects</p>
+            </div>
+            <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 5</p>
+                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #e9d5ff; color: #6b21a8; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Very Poor</span>
+                <p style="font-size: 12px; color: #666;">Health alert conditions</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getAQIColor(value) {
+        // OpenWeather categorical AQI (1..5)
+        // 1: Good, 2: Fair, 3: Moderate, 4: Poor, 5: Very Poor
+        switch (Number(value)) {
+            case 1: return { bg: '#dcfce7', text: '#15803d', label: 'Good' };
+            case 2: return { bg: '#fef3c7', text: '#b45309', label: 'Fair' };
+            case 3: return { bg: '#fed7aa', text: '#92400e', label: 'Moderate' };
+            case 4: return { bg: '#fecaca', text: '#7f1d1d', label: 'Poor' };
+            case 5: return { bg: '#f4c4f3', text: '#7c2d12', label: 'Very Poor' };
+            default: return { bg: '#f3f4f6', text: '#374151', label: 'Unknown' };
+        }
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+    }
+
+    function hideError() {
+        document.getElementById('error-message').classList.add('hidden');
+    }
+
+    // Render a simple SVG line chart for the trend (values on 0-500 scale)
+    function renderTrendSVG(containerId, trend) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        if (!trend || trend.length === 0) {
+            container.innerHTML = '<p style="color:#999;">No trend data available</p>';
+            return;
+        }
+
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 220;
+        const padding = { top: 45, right: 20, bottom: 40, left: 100 };
+        const svgW = width;
+        const svgH = height;
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', svgH);
+        svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+
+        // compute scales - categorical 1..5
+        const values = trend.map(d => Number(d.value || 0));
+        const minV = 1;
+        const maxV = 5;
+
+        const innerW = svgW - padding.left - padding.right;
+        const innerH = svgH - padding.top - padding.bottom;
+
+        function x(i) { return padding.left + (i / (trend.length - 1)) * innerW; }
+        function y(v) { return padding.top + innerH - ((v - minV) / (maxV - minV || 1)) * innerH; }
+
+        // axes
+        const axis = document.createElementNS(svgNS, 'line');
+        axis.setAttribute('x1', padding.left);
+        axis.setAttribute('y1', padding.top + innerH);
+        axis.setAttribute('x2', padding.left + innerW);
+        axis.setAttribute('y2', padding.top + innerH);
+        axis.setAttribute('stroke', '#e5e7eb');
+        svg.appendChild(axis);
+
+        // y labels for categorical axis (1..5) with names
+        const labelMap = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'};
+        [1,2,3,4,5].forEach(v => {
+            const yy = y(v);
+            const t = document.createElementNS(svgNS, 'text');
+            t.setAttribute('x', padding.left - 12);
+            t.setAttribute('y', yy + 4);
+            t.setAttribute('font-size', '12');
+            t.setAttribute('font-weight', 'bold');
+            t.setAttribute('text-anchor', 'end');
+            t.setAttribute('fill', '#374151');
+            t.textContent = labelMap[v] || v;
+            svg.appendChild(t);
+
+            const grid = document.createElementNS(svgNS, 'line');
+            grid.setAttribute('x1', padding.left);
+            grid.setAttribute('y1', yy);
+            grid.setAttribute('x2', padding.left + innerW);
+            grid.setAttribute('y2', yy);
+            grid.setAttribute('stroke', '#f3f4f6');
+            grid.setAttribute('stroke-width', '1');
+            svg.appendChild(grid);
+        });
+
+        // line path - CHANGED TO RED
+        const points = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+        const polyline = document.createElementNS(svgNS, 'polyline');
+        polyline.setAttribute('points', points);
+        polyline.setAttribute('fill', 'none');
+        polyline.setAttribute('stroke', '#dc2626');
+        polyline.setAttribute('stroke-width', '3');
+        polyline.setAttribute('stroke-linecap', 'round');
+        polyline.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(polyline);
+
+        // points and labels
+        values.forEach((v, i) => {
+            const cx = x(i);
+            const cy = y(v);
+            const circle = document.createElementNS(svgNS, 'circle');
+            circle.setAttribute('cx', cx);
+            circle.setAttribute('cy', cy);
+            circle.setAttribute('r', 4);
+            circle.setAttribute('fill', '#fff');
+            circle.setAttribute('stroke', '#dc2626');
+            circle.setAttribute('stroke-width', '2');
+            svg.appendChild(circle);
+
+            const tv = document.createElementNS(svgNS, 'text');
+            tv.setAttribute('x', cx);
+            tv.setAttribute('y', cy - 12);
+            tv.setAttribute('font-size', '13');
+            tv.setAttribute('font-weight', 'bold');
+            tv.setAttribute('fill', '#111827');
+            tv.setAttribute('text-anchor', 'middle');
+            tv.textContent = v; // numeric categorical value (1..5)
+            svg.appendChild(tv);
+
+            const dateLabel = document.createElementNS(svgNS, 'text');
+            dateLabel.setAttribute('x', cx);
+            dateLabel.setAttribute('y', padding.top + innerH + 22);
+            dateLabel.setAttribute('font-size', '12');
+            dateLabel.setAttribute('font-weight', 'bold');
+            dateLabel.setAttribute('fill', '#4b5563');
+            dateLabel.setAttribute('text-anchor', 'middle');
+            const d = new Date(trend[i].date);
+            dateLabel.textContent = d.getDate();
+            svg.appendChild(dateLabel);
+        });
+
+        container.appendChild(svg);
+    }
+
+    async function loadAreaData() {
+        const areaId = document.getElementById('area-select').value;
+        hideError();
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('trees-section').classList.add('hidden');
+
+        try {
+            // Fetch AQI Index data, trend, and trees
+            const [aqiRes, trendRes, treesRes] = await Promise.all([
+                fetch(`/api/web/area/${areaId}/aqi`),
+                fetch(`/api/web/area/${areaId}/aqi-trend`),
+                fetch(`/api/web/area/${areaId}/trees`)
+            ]);
+
+            if (!aqiRes.ok || !trendRes.ok || !treesRes.ok) {
+                throw new Error('Failed to fetch data');
+            }
+
+            const aqi = await aqiRes.json();
+            const trendResp = await trendRes.json();
+            // Normalize response: backend may return an array or an object with a `value` array
+            const trend = Array.isArray(trendResp) ? trendResp : (trendResp && trendResp.value ? trendResp.value : []);
+            const trees = await treesRes.json();
+
+            // Update AQI Index display
+            const color = getAQIColor(aqi.aqi);
+            document.getElementById('aqi-box').style.backgroundColor = color.bg;
+            document.getElementById('aqi-value').style.color = color.text;
+            document.getElementById('aqi-value').textContent = aqi.aqi;
+            document.getElementById('aqi-status').textContent = aqi.level;
+            document.getElementById('aqi-status').style.backgroundColor = color.text;
+            document.getElementById('aqi-time').textContent = 'Last updated: ' + new Date(aqi.timestamp).toLocaleString();
+
+            // Update trend chart (AQI Index is on 0-500 US EPA scale)
+            const maxValue = 500;
+            const minValue = 0;
+            const range = maxValue - minValue || 1;
+
+            const trendChartContainer = document.getElementById('trend-chart-container');
+            trendChartContainer.innerHTML = '';
+
+            if (!trend || trend.length === 0) {
+                trendChartContainer.innerHTML = '<p style="color:#999;">No trend data available</p>';
+            } else {
+                // Render the SVG line chart (values expected as objects with `date` and `value`)
+                renderTrendSVG('trend-chart-container', trend);
+            }
+
+            // Update trees display
+            const treesGrid = document.getElementById('trees-grid');
+            treesGrid.innerHTML = '';
+            
+            trees.forEach(tree => {
+                const treeCard = document.createElement('div');
+                treeCard.className = 'stat-card';
+                treeCard.innerHTML = `
+                    <h4 style="font-weight: 600; margin-bottom: 4px; color: #15803d;">${tree.name}</h4>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 8px; font-style: italic;">${tree.scientificName}</p>
+                    <p style="font-size: 13px; color: #333; margin-bottom: 12px; line-height: 1.4;">${tree.reason}</p>
+                    <div style="margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="font-size: 11px; font-weight: 600; color: #555;">Air Purification:</span>
+                            <span style="font-size: 12px; font-weight: 600; color: #dc2626;">${tree.pollutionAbsorption}</span>
+                        </div>
+                        ${tree.benefits ? `<div style="display: flex; justify-content: space-between;">
+                            <span style="font-size: 11px; font-weight: 600; color: #555;">Benefits:</span>
+                            <span style="font-size: 12px; color: #16a34a; font-weight: 500;">${tree.benefits}</span>
+                        </div>` : ''}
+                    </div>
+                `;
+                treesGrid.appendChild(treeCard);
+            });
+
+            // Show sections
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('trees-section').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Failed to load air quality data. Please try again.');
+            document.getElementById('loading').classList.add('hidden');
+        }
+    }
+
+    // Load initial data
+    loadAreaData();
+</script>
+{% endblock %}

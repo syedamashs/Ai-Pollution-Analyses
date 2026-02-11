@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Area Analysis - GreenMadurai{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 style="font-size: 28px; font-weight: bold; margin-bottom: 8px;">City Analysis</h2>
+        <p style="color: #666;">Select a city in Tamil Nadu to analyze free land and plantation potential</p>
+    </div>
+
+    <div id="error-message" class="alert alert-error hidden"></div>
+
+    <!-- Area Selection Card -->
+    <div class="content-card">
+        <h3 class="card-title">📍 Select City</h3>
+        <p class="card-subtitle">Choose a city in Tamil Nadu for analysis</p>
+        
+        <div class="form-group">
+            <label class="form-label">City in Tamil Nadu</label>
+            <select id="area-select" class="form-select" onchange="updateAreaDescription()">
+                <option value="">Select an area...</option>
+                {% for area in areas %}
+                <option value="{{ area.id }}">{{ area.name }}</option>
+                {% endfor %}
+            </select>
+            <p id="area-desc" style="margin-top: 12px; font-size: 14px; color: #666;"></p>
+        </div>
+
+        <button class="btn btn-primary" onclick="analyzeArea()" id="analyze-btn" disabled>
+            <span>📍</span>
+            <span>Analyze City</span>
+        </button>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="hidden">
+        <div class="content-card">
+            <div style="text-align: center; padding: 40px;">
+                <div class="spinner"></div>
+                <p style="font-size: 18px; font-weight: 500; margin-top: 16px;">Analyzing satellite imagery...</p>
+                <p style="font-size: 14px; color: #666; margin-top: 8px;">Processing AI models for land segmentation</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    <div id="results" class="hidden">
+        <div class="content-card" id="success-banner">
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">✅ Analysis Complete: <span id="result-area-name"></span></h3>
+            <p style="color: #666;">The AI has successfully analyzed the selected area and identified potential plantation zones.</p>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue">📊</div>
+                <div class="stat-value" id="metric-free-land">0%</div>
+                <div class="stat-label">Free Land Percentage</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">🌍</div>
+                <div class="stat-value" id="metric-plantation">0</div>
+                <div class="stat-label">Estimated Plantation Area (m²)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">🌲</div>
+                <div class="stat-value" id="metric-trees">0</div>
+                <div class="stat-label">Estimated Number of Trees</div>
+            </div>
+        </div>
+
+        <!-- Analysis Images -->
+        <div class="content-card">
+            <h3 class="card-title">Analysis Results</h3>
+            <div class="grid-3">
+                <div>
+                    <div class="image-container">
+                        <img id="original-image" src="" alt="Original Satellite Image">
+                    </div>
+                    <p class="image-title">Original Satellite Image</p>
+                </div>
+                <div>
+                    <div class="image-container">
+                        <img id="segmented-image" src="" alt="Segmented Image">
+                    </div>
+                    <p class="image-title">Segmented Image</p>
+                </div>
+                <div>
+                    <div class="image-container">
+                        <img id="mask-image" src="" alt="Free Land Mask">
+                    </div>
+                    <p class="image-title">Free Land Mask</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Insights -->
+        <div class="content-card">
+            <h3 class="card-title">Analysis Insights</h3>
+            <div class="space-y-4">
+                <div style="display: flex; gap: 12px;">
+                    <div style="width: 8px; height: 8px; background-color: #16a34a; border-radius: 50%; margin-top: 6px; flex-shrink: 0;"></div>
+                    <p>The segmentation model has identified <strong id="insight-free-land">0%</strong> of the area as suitable for plantation.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <div style="width: 8px; height: 8px; background-color: #2563eb; border-radius: 50%; margin-top: 6px; flex-shrink: 0;"></div>
+                    <p>Approximately <strong id="insight-trees">0</strong> trees can be planted in the identified free land zones.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <div style="width: 8px; height: 8px; background-color: #0891b2; border-radius: 50%; margin-top: 6px; flex-shrink: 0;"></div>
+                    <p>Total plantation area: <strong id="insight-area">0 square meters</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const areas = {{ areas | tojson }};
+
+    function updateAreaDescription() {
+        const select = document.getElementById('area-select');
+        const desc = document.getElementById('area-desc');
+        const btn = document.getElementById('analyze-btn');
+        
+        if (!select.value) {
+            desc.textContent = '';
+            btn.disabled = true;
+            return;
+        }
+        
+        const area = areas.find(a => a.id === select.value);
+        desc.textContent = area ? area.description : '';
+        btn.disabled = false;
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('loading').classList.add('hidden');
+    }
+
+    function hideError() {
+        document.getElementById('error-message').classList.add('hidden');
+    }
+
+    async function analyzeArea() {
+        const areaId = document.getElementById('area-select').value;
+        if (!areaId) return;
+
+        hideError();
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('results').classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/web/area/${areaId}/analysis`);
+            if (!response.ok) throw new Error('Failed to fetch analysis data');
+            
+            const data = await response.json();
+            
+            // Update metrics
+            document.getElementById('metric-free-land').textContent = data.freeLandPercentage + '%';
+            document.getElementById('metric-plantation').textContent = data.plantationArea.toLocaleString();
+            document.getElementById('metric-trees').textContent = data.estimatedTrees.toLocaleString();
+            
+            // Update insights
+            document.getElementById('insight-free-land').textContent = data.freeLandPercentage + '%';
+            document.getElementById('insight-trees').textContent = data.estimatedTrees.toLocaleString();
+            document.getElementById('insight-area').textContent = data.plantationArea.toLocaleString() + ' square meters';
+            
+            // Update images
+            document.getElementById('original-image').src = data.originalImage;
+            document.getElementById('segmented-image').src = data.segmentedImage;
+            document.getElementById('mask-image').src = data.maskImage;
+            
+            // Update area name
+            document.getElementById('result-area-name').textContent = data.areaName;
+            
+            // Show results
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('results').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Failed to analyze area. Please try again.');
+        }
+    }
+</script>
+{% endblock %}
