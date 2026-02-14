@@ -6,3 +6,4 @@ Pillow
 streamlit
 flask
 flask-cors
+tensorflow

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Flask Web UI for GreenTamilNadu - AI Pollution Analysis System"""
-from flask import Flask, render_template, jsonify, send_file
+from flask import Flask, render_template, jsonify, send_file, request
 from flask_cors import CORS
 from pathlib import Path
 import os
@@ -9,7 +9,12 @@ import numpy as np
 import cv2
 from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
 import threading
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
 
 # Configuration and defaults
 OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', 'b94f9c7458972cd296068cfa48e2db31')
@@ -31,6 +36,12 @@ ANALYSIS_DATA = {}
 # In-memory cache for AQI data (to avoid repeated API calls)
 AQI_CACHE = {}
 AQI_CACHE_TIMEOUT = 600  # Cache for 10 minutes
+
+# In-memory caches for history and forecast
+HISTORY_CACHE = {}
+HISTORY_CACHE_TIMEOUT = 6 * 60 * 60  # Cache for 6 hours
+FORECAST_CACHE = {}
+FORECAST_CACHE_TIMEOUT = 6 * 60 * 60  # Cache for 6 hours
 
 # Flask app
 app = Flask(__name__)
@@ -305,6 +316,180 @@ def get_aqi_trend(city_id):
     
     return []
 
+def _fetch_aqi_history_chunk(city_id, start_ts, end_ts):
+    """Fetch raw history records from OpenWeather in a time window."""
+    coords = CITY_COORDS[city_id]
+    url = (
+        "https://api.openweathermap.org/data/2.5/air_pollution/history"
+        f"?lat={coords['lat']}&lon={coords['lon']}&start={start_ts}&end={end_ts}"
+        f"&appid={OPENWEATHER_API_KEY}"
+    )
+    response = requests.get(url, timeout=12)
+    response.raise_for_status()
+    data = response.json()
+    return data.get('list', [])
+
+def get_aqi_history_daily(city_id, days=365):
+    """Get daily AQI history (categorical 1..5) for a city."""
+    if city_id not in CITY_COORDS:
+        return []
+
+    days = max(7, min(int(days), 365))
+    cache_key = f"{city_id}:{days}"
+    cached = HISTORY_CACHE.get(cache_key)
+    if cached:
+        if (datetime.now() - cached['timestamp']).total_seconds() < HISTORY_CACHE_TIMEOUT:
+            return cached['data']
+
+    now = datetime.now()
+    start_dt = now - timedelta(days=days)
+    end_dt = now
+
+    daily_aqi = {}
+    chunk_days = 5
+    chunk_start = start_dt
+    failures = 0
+
+    while chunk_start < end_dt:
+        chunk_end = min(chunk_start + timedelta(days=chunk_days), end_dt)
+        start_ts = int(chunk_start.timestamp())
+        end_ts = int(chunk_end.timestamp())
+        try:
+            items = _fetch_aqi_history_chunk(city_id, start_ts, end_ts)
+            for item in items:
+                main = item.get('main', {})
+                aqi_cat = main.get('aqi', 0)
+                try:
+                    aqi_val = int(aqi_cat)
+                except Exception:
+                    aqi_val = 0
+                dt = datetime.fromtimestamp(item['dt']).strftime('%Y-%m-%d')
+                if dt not in daily_aqi:
+                    daily_aqi[dt] = aqi_val
+                else:
+                    daily_aqi[dt] = max(daily_aqi[dt], aqi_val)
+        except Exception as e:
+            failures += 1
+            print(f"⚠️  History chunk error for {city_id}: {e}")
+
+        chunk_start = chunk_end
+
+    # Ensure today's AQI is current
+    current_aqi = get_aqi_for_city(city_id)
+    if current_aqi and 'aqi' in current_aqi:
+        today_str = now.strftime('%Y-%m-%d')
+        daily_aqi[today_str] = current_aqi['aqi']
+
+    # Build ordered daily series and fill gaps
+    series = []
+    last_val = None
+    for i in range(days):
+        day = (start_dt + timedelta(days=i)).strftime('%Y-%m-%d')
+        if day in daily_aqi and daily_aqi[day] > 0:
+            val = daily_aqi[day]
+        elif last_val is not None:
+            val = last_val
+        else:
+            val = 2
+        series.append({'date': day, 'value': val})
+        last_val = val
+
+    HISTORY_CACHE[cache_key] = {
+        'data': series,
+        'timestamp': datetime.now(),
+        'failures': failures
+    }
+    return series
+
+def _aqi_label(value):
+    label_map = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
+    try:
+        v = int(round(float(value)))
+    except Exception:
+        v = 0
+    return label_map.get(v, 'Unknown')
+
+def get_aqi_forecast(city_id, lookback_days=365, horizon_days=7):
+    """Forecast AQI using an LSTM model and return next 7 days."""
+    if city_id not in CITY_COORDS:
+        return []
+
+    lookback_days = max(60, min(int(lookback_days), 365))
+    horizon_days = max(1, min(int(horizon_days), 14))
+    cache_key = f"{city_id}:{lookback_days}:{horizon_days}"
+    cached = FORECAST_CACHE.get(cache_key)
+    if cached:
+        if (datetime.now() - cached['timestamp']).total_seconds() < FORECAST_CACHE_TIMEOUT:
+            return cached['data']
+
+    history = get_aqi_history_daily(city_id, lookback_days)
+    values = [float(d['value']) for d in history if d.get('value') is not None]
+    if len(values) < 30:
+        fallback = _fallback_forecast(values, horizon_days)
+        FORECAST_CACHE[cache_key] = {'data': fallback, 'timestamp': datetime.now()}
+        return fallback
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    data = np.array(values).reshape(-1, 1)
+    scaled = scaler.fit_transform(data)
+
+    window = min(30, len(scaled) - 1)
+    if window < 5:
+        fallback = _fallback_forecast(values, horizon_days)
+        FORECAST_CACHE[cache_key] = {'data': fallback, 'timestamp': datetime.now()}
+        return fallback
+
+    X, y = [], []
+    for i in range(window, len(scaled)):
+        X.append(scaled[i - window:i])
+        y.append(scaled[i])
+
+    X = np.array(X)
+    y = np.array(y)
+
+    model = Sequential([
+        LSTM(32, input_shape=(X.shape[1], 1)),
+        Dense(1)
+    ])
+    model.compile(optimizer='adam', loss='mse')
+    model.fit(X, y, epochs=12, batch_size=16, verbose=0)
+
+    input_seq = scaled[-window:].reshape(1, window, 1)
+    forecast_scaled = []
+    for _ in range(horizon_days):
+        pred = model.predict(input_seq, verbose=0)
+        forecast_scaled.append(pred[0, 0])
+        input_seq = np.concatenate([input_seq[:, 1:, :], pred.reshape(1, 1, 1)], axis=1)
+
+    forecast_values = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1)).flatten()
+    forecast = []
+    start_date = datetime.now().date()
+    for i, val in enumerate(forecast_values, start=1):
+        clamped = float(np.clip(val, 1, 5))
+        forecast.append({
+            'date': (start_date + timedelta(days=i)).strftime('%Y-%m-%d'),
+            'value': round(clamped, 2),
+            'label': _aqi_label(clamped)
+        })
+
+    FORECAST_CACHE[cache_key] = {'data': forecast, 'timestamp': datetime.now()}
+    return forecast
+
+def _fallback_forecast(values, horizon_days):
+    """Fallback forecast using simple average of last 7 values."""
+    recent = values[-7:] if values else [2]
+    avg = float(np.mean(recent)) if recent else 2
+    start_date = datetime.now().date()
+    forecast = []
+    for i in range(1, horizon_days + 1):
+        clamped = float(np.clip(avg, 1, 5))
+        forecast.append({
+            'date': (start_date + timedelta(days=i)).strftime('%Y-%m-%d'),
+            'value': round(clamped, 2),
+            'label': _aqi_label(clamped)
+        })
+    return forecast
+
 def get_tree_category(aqi):
     """Determine tree recommendation category based on AQI"""
     # Map OpenWeather categorical AQI (1..5) to tree recommendation keys
@@ -506,6 +691,11 @@ def aqi_trees():
     """AQI and trees page"""
     return render_template('aqi_trees.html', areas=AREAS)
 
+@app.route('/forecasting')
+def forecasting():
+    """AQI forecasting page"""
+    return render_template('forecasting.html', areas=AREAS)
+
 @app.route('/about')
 def about():
     """About page"""
@@ -586,6 +776,24 @@ def web_get_aqi_trend(area_id):
     """Get 7-day AQI trend"""
     trend = get_aqi_trend(area_id)
     return jsonify(trend)
+
+@app.route('/api/web/area/<area_id>/aqi-forecast')
+def web_get_aqi_forecast(area_id):
+    """Get 7-day AQI forecast using LSTM"""
+    if area_id not in CITY_COORDS:
+        return jsonify({'error': 'City not found'}), 404
+
+    lookback_days = request.args.get('days', default=365, type=int)
+    horizon_days = request.args.get('horizon', default=7, type=int)
+    forecast = get_aqi_forecast(area_id, lookback_days, horizon_days)
+    return jsonify({
+        'areaId': area_id,
+        'areaName': CITY_COORDS[area_id]['name'],
+        'lookbackDays': lookback_days,
+        'horizonDays': horizon_days,
+        'updatedAt': datetime.now().isoformat(),
+        'forecast': forecast
+    })
 
 @app.route('/api/web/area/<area_id>/trees')
 def web_get_trees(area_id):

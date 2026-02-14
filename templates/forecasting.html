@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Forecasting - GreenTamilNadu{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 style="font-size: 28px; font-weight: bold; margin-bottom: 8px;">AQI Forecasting</h2>
+        <p style="color: #666;">LSTM-based 7-day AQI forecast using the past 365 days of data</p>
+    </div>
+
+    <div id="error-message" class="alert alert-error hidden"></div>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+        <div class="content-card">
+            <label class="form-label">Select City</label>
+            <select id="area-select" class="form-select" onchange="loadForecast()">
+                {% for area in areas %}
+                <option value="{{ area.id }}" {% if loop.first %}selected{% endif %}>{{ area.name }}</option>
+                {% endfor %}
+            </select>
+
+            <div style="margin-top: 20px; padding: 16px; background-color: #f8fafc; border-radius: 10px; border: 1px solid #e5e7eb;">
+                <p style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">Model Window</p>
+                <p style="font-size: 20px; font-weight: 700; color: #111827;">365 days</p>
+                <p id="forecast-updated" style="font-size: 11px; color: #9ca3af; margin-top: 8px;">Last updated: -</p>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <h3 class="card-title">🔮 Next 7 Days Forecast</h3>
+            </div>
+            <div id="forecast-chart-container" style="display: flex; align-items: flex-end; gap: 10px; height: 250px; justify-content: space-around;">
+                <!-- SVG chart injected here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="hidden">
+        <div class="content-card">
+            <div style="text-align: center; padding: 40px;">
+                <div class="spinner"></div>
+                <p style="font-size: 18px; font-weight: 500; margin-top: 16px;">Running LSTM forecast...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="forecast-cards" class="hidden">
+        <div class="content-card">
+            <h3 class="card-title">7-Day Forecast Details</h3>
+            <div id="forecast-grid" class="grid-3">
+                <!-- Cards injected here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showError(message) {
+        const errorDiv = document.getElementById('error-message');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+    }
+
+    function hideError() {
+        document.getElementById('error-message').classList.add('hidden');
+    }
+
+    function getAQIColor(value) {
+        switch (Number(value)) {
+            case 1: return { bg: '#dcfce7', text: '#15803d', label: 'Good' };
+            case 2: return { bg: '#fef3c7', text: '#b45309', label: 'Fair' };
+            case 3: return { bg: '#fed7aa', text: '#92400e', label: 'Moderate' };
+            case 4: return { bg: '#fecaca', text: '#7f1d1d', label: 'Poor' };
+            case 5: return { bg: '#f4c4f3', text: '#7c2d12', label: 'Very Poor' };
+            default: return { bg: '#f3f4f6', text: '#374151', label: 'Unknown' };
+        }
+    }
+
+    function renderForecastSVG(containerId, forecast) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        if (!forecast || forecast.length === 0) {
+            container.innerHTML = '<p style="color:#999;">No forecast data available</p>';
+            return;
+        }
+
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 220;
+        const padding = { top: 45, right: 20, bottom: 40, left: 100 };
+        const svgW = width;
+        const svgH = height;
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', svgH);
+        svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+
+        const values = forecast.map(d => Number(d.value || 0));
+        const minV = 1;
+        const maxV = 5;
+
+        const innerW = svgW - padding.left - padding.right;
+        const innerH = svgH - padding.top - padding.bottom;
+
+        function x(i) { return padding.left + (i / (forecast.length - 1)) * innerW; }
+        function y(v) { return padding.top + innerH - ((v - minV) / (maxV - minV || 1)) * innerH; }
+
+        const axis = document.createElementNS(svgNS, 'line');
+        axis.setAttribute('x1', padding.left);
+        axis.setAttribute('y1', padding.top + innerH);
+        axis.setAttribute('x2', padding.left + innerW);
+        axis.setAttribute('y2', padding.top + innerH);
+        axis.setAttribute('stroke', '#e5e7eb');
+        svg.appendChild(axis);
+
+        const labelMap = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'};
+        [1,2,3,4,5].forEach(v => {
+            const yy = y(v);
+            const t = document.createElementNS(svgNS, 'text');
+            t.setAttribute('x', padding.left - 12);
+            t.setAttribute('y', yy + 4);
+            t.setAttribute('font-size', '12');
+            t.setAttribute('font-weight', 'bold');
+            t.setAttribute('text-anchor', 'end');
+            t.setAttribute('fill', '#374151');
+            t.textContent = labelMap[v] || v;
+            svg.appendChild(t);
+
+            const grid = document.createElementNS(svgNS, 'line');
+            grid.setAttribute('x1', padding.left);
+            grid.setAttribute('y1', yy);
+            grid.setAttribute('x2', padding.left + innerW);
+            grid.setAttribute('y2', yy);
+            grid.setAttribute('stroke', '#f3f4f6');
+            grid.setAttribute('stroke-width', '1');
+            svg.appendChild(grid);
+        });
+
+        const points = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+        const polyline = document.createElementNS(svgNS, 'polyline');
+        polyline.setAttribute('points', points);
+        polyline.setAttribute('fill', 'none');
+        polyline.setAttribute('stroke', '#2563eb');
+        polyline.setAttribute('stroke-width', '3');
+        polyline.setAttribute('stroke-linecap', 'round');
+        polyline.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(polyline);
+
+        values.forEach((v, i) => {
+            const cx = x(i);
+            const cy = y(v);
+            const circle = document.createElementNS(svgNS, 'circle');
+            circle.setAttribute('cx', cx);
+            circle.setAttribute('cy', cy);
+            circle.setAttribute('r', 4);
+            circle.setAttribute('fill', '#fff');
+            circle.setAttribute('stroke', '#2563eb');
+            circle.setAttribute('stroke-width', '2');
+            svg.appendChild(circle);
+
+            const tv = document.createElementNS(svgNS, 'text');
+            tv.setAttribute('x', cx);
+            tv.setAttribute('y', cy - 12);
+            tv.setAttribute('font-size', '13');
+            tv.setAttribute('font-weight', 'bold');
+            tv.setAttribute('fill', '#111827');
+            tv.setAttribute('text-anchor', 'middle');
+            tv.textContent = v.toFixed(1);
+            svg.appendChild(tv);
+
+            const dateLabel = document.createElementNS(svgNS, 'text');
+            dateLabel.setAttribute('x', cx);
+            dateLabel.setAttribute('y', padding.top + innerH + 22);
+            dateLabel.setAttribute('font-size', '12');
+            dateLabel.setAttribute('font-weight', 'bold');
+            dateLabel.setAttribute('fill', '#4b5563');
+            dateLabel.setAttribute('text-anchor', 'middle');
+            const d = new Date(forecast[i].date);
+            dateLabel.textContent = d.getDate();
+            svg.appendChild(dateLabel);
+        });
+
+        container.appendChild(svg);
+    }
+
+    async function loadForecast() {
+        const areaId = document.getElementById('area-select').value;
+        hideError();
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('forecast-cards').classList.add('hidden');
+
+        try {
+            const res = await fetch(`/api/web/area/${areaId}/aqi-forecast?days=365&horizon=7`);
+            if (!res.ok) {
+                throw new Error('Failed to fetch forecast');
+            }
+            const data = await res.json();
+            const forecast = data.forecast || [];
+
+            renderForecastSVG('forecast-chart-container', forecast);
+
+            const grid = document.getElementById('forecast-grid');
+            grid.innerHTML = '';
+            forecast.forEach(item => {
+                const aqiLevel = Math.round(Number(item.value) || 0);
+                const color = getAQIColor(aqiLevel);
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="font-weight: 600; color: #111827;">${new Date(item.date).toDateString()}</span>
+                        <span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ${color.bg}; color: ${color.text};">${item.label}</span>
+                    </div>
+                    <div style="font-size: 34px; font-weight: 700; color: ${color.text};">${item.value}</div>
+                    <div style="font-size: 12px; color: #6b7280;">Predicted AQI (1-5 scale)</div>
+                `;
+                grid.appendChild(card);
+            });
+
+            document.getElementById('forecast-updated').textContent = 'Last updated: ' + new Date(data.updatedAt).toLocaleString();
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('forecast-cards').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Failed to load forecast. Please try again.');
+            document.getElementById('loading').classList.add('hidden');
+        }
+    }
+
+    loadForecast();
+</script>
+{% endblock %}
