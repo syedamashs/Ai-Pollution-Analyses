@@ -56,10 +56,34 @@
     <div id="trees-section" class="hidden">
         <div class="content-card">
             <h3 class="card-title">🌳 Recommended Trees</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Each recommendation includes explainability factors and estimated impact score.</p>
             <div id="trees-grid" class="grid-2">
                 <!-- Trees will be added by JavaScript -->
             </div>
+            <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-primary" style="max-width: 320px;" onclick="submitFeedback()">Save Selected Trees Feedback</button>
+                <span id="feedback-status" style="font-size: 12px; color: #666;"></span>
+            </div>
         </div>
+    </div>
+
+    <div class="content-card">
+        <h3 class="card-title">🎯 Scenario Simulation</h3>
+        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Estimate species mix and tree count needed to improve AQI category.</p>
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;">
+            <div>
+                <label class="form-label">Target AQI Category (1=Good, 5=Very Poor)</label>
+                <select id="target-aqi" class="form-select">
+                    <option value="1">1 - Good</option>
+                    <option value="2">2 - Fair</option>
+                    <option value="3">3 - Moderate</option>
+                    <option value="4">4 - Poor</option>
+                    <option value="5">5 - Very Poor</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="width: 220px;" onclick="runScenario()">Run Simulation</button>
+        </div>
+        <div id="scenario-result" style="margin-top: 16px;"></div>
     </div>
 
     <!-- AQI Levels Reference -->
@@ -96,6 +120,8 @@
 </div>
 
 <script>
+    let latestTrees = [];
+
     function getAQIColor(value) {
         // OpenWeather categorical AQI (1..5)
         // 1: Good, 2: Fair, 3: Moderate, 4: Poor, 5: Very Poor
@@ -256,6 +282,7 @@
             // Normalize response: backend may return an array or an object with a `value` array
             const trend = Array.isArray(trendResp) ? trendResp : (trendResp && trendResp.value ? trendResp.value : []);
             const trees = await treesRes.json();
+            latestTrees = Array.isArray(trees) ? trees : [];
 
             // Update AQI Index display
             const color = getAQIColor(aqi.aqi);
@@ -286,10 +313,18 @@
             treesGrid.innerHTML = '';
             
             trees.forEach(tree => {
+                const explain = tree.explainability || {};
+                const topFactors = Array.isArray(explain.topFactors) ? explain.topFactors.slice(0, 3) : [];
+                const impact = tree.impactPrediction || {};
                 const treeCard = document.createElement('div');
                 treeCard.className = 'stat-card';
                 treeCard.innerHTML = `
-                    <h4 style="font-weight: 600; margin-bottom: 4px; color: #15803d;">${tree.name}</h4>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <h4 style="font-weight: 600; color: #15803d;">${tree.name}</h4>
+                        <label style="font-size: 12px; color: #333; display: flex; align-items: center; gap: 6px;">
+                            <input type="checkbox" class="tree-select" value="${tree.id}" /> Select
+                        </label>
+                    </div>
                     <p style="font-size: 11px; color: #666; margin-bottom: 8px; font-style: italic;">${tree.scientificName}</p>
                     <p style="font-size: 13px; color: #333; margin-bottom: 12px; line-height: 1.4;">${tree.reason}</p>
                     <div style="margin-bottom: 8px;">
@@ -302,6 +337,12 @@
                             <span style="font-size: 12px; color: #16a34a; font-weight: 500;">${tree.benefits}</span>
                         </div>` : ''}
                     </div>
+                    ${typeof tree.modelScore !== 'undefined' ? `<p style="font-size: 12px; color: #2563eb; margin-top: 6px;">Model Score: ${tree.modelScore}</p>` : ''}
+                    ${typeof impact.impactScore !== 'undefined' ? `<p style="font-size: 12px; color: #7c3aed; margin-top: 4px;">Impact Score: ${impact.impactScore} | PM2.5 reduction / 100 trees: ${impact.estimatedPm25ReductionPer100Trees}</p>` : ''}
+                    ${topFactors.length ? `<div style="margin-top: 8px; padding: 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <p style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 6px;">Top Factors</p>
+                        ${topFactors.map(f => `<div style="font-size: 12px; color: #475569;">${f.name}: ${f.score}</div>`).join('')}
+                    </div>` : ''}
                 `;
                 treesGrid.appendChild(treeCard);
             });
@@ -313,6 +354,66 @@
             console.error('Error:', error);
             showError('Failed to load air quality data. Please try again.');
             document.getElementById('loading').classList.add('hidden');
+        }
+    }
+
+    async function runScenario() {
+        const areaId = document.getElementById('area-select').value;
+        const targetAQI = Number(document.getElementById('target-aqi').value);
+        const resultDiv = document.getElementById('scenario-result');
+        resultDiv.innerHTML = '<p style="font-size:13px; color:#666;">Running simulation...</p>';
+
+        try {
+            const response = await fetch(`/api/web/area/${areaId}/scenario`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetAQI })
+            });
+            if (!response.ok) {
+                throw new Error('Scenario API failed');
+            }
+
+            const data = await response.json();
+            const list = (data.speciesMix || []).map(item =>
+                `<li style="font-size: 13px; margin-bottom: 4px;">${item.name}: ${item.recommendedCount} trees (impact ${item.impactScore})</li>`
+            ).join('');
+
+            resultDiv.innerHTML = `
+                <div style="padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                    <p style="font-size: 13px; margin-bottom: 6px;"><strong>Current AQI:</strong> ${data.currentAQI} | <strong>Target:</strong> ${data.targetAQI}</p>
+                    <p style="font-size: 13px; margin-bottom: 6px;"><strong>Estimated Total Trees:</strong> ${data.estimatedTotalTrees}</p>
+                    <ul style="padding-left: 20px;">${list}</ul>
+                </div>
+            `;
+        } catch (error) {
+            resultDiv.innerHTML = '<p style="font-size:13px; color:#dc2626;">Failed to run simulation.</p>';
+        }
+    }
+
+    async function submitFeedback() {
+        const areaId = document.getElementById('area-select').value;
+        const selected = Array.from(document.querySelectorAll('.tree-select:checked')).map(el => el.value);
+        const shown = latestTrees.map(tree => String(tree.id));
+        const status = document.getElementById('feedback-status');
+        status.textContent = 'Saving...';
+
+        try {
+            const response = await fetch('/api/web/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cityId: areaId,
+                    shownTreeIds: shown,
+                    selectedTreeIds: selected,
+                    note: 'Saved from AQI & Trees page'
+                })
+            });
+            if (!response.ok) {
+                throw new Error('Feedback API failed');
+            }
+            status.textContent = 'Feedback saved successfully.';
+        } catch (error) {
+            status.textContent = 'Failed to save feedback.';
         }
     }
 

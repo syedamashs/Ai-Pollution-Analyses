@@ -6,4 +6,7 @@ Pillow
 streamlit
 flask
 flask-cors
-tensorflow
+tensorflow>=2.10
+statsmodels>=0.13
+prophet>=1.1
+pandas>=1.3

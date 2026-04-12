@@ -11,6 +11,34 @@ A complete **full-stack application** for analyzing air pollution using satellit
 
 ---
 
+## 🧠 Newly Added ML Features
+
+1. **Explainable Tree Recommendations**
+- Top factors per tree: AQI fit, pollution tolerance, water need fit, canopy score
+- Returns model confidence score and estimated PM2.5 impact
+
+2. **Model Evaluation Dashboard**
+- Route: `/model-evaluation`
+- API: `/api/model/evaluation`
+- Shows accuracy, precision, recall, confusion matrix, sample count
+
+3. **City-Profile-Aware Recommendations (Phase 2 Inputs)**
+- Added city profile features: temperature, humidity, rainfall, urban density
+- Dataset file: `Data/city_profile_dataset.csv`
+
+4. **Impact Prediction Model Output**
+- Returns impact score and estimated PM2.5 reduction per 100 trees
+
+5. **Feedback Loop Endpoint**
+- API: `POST /api/web/feedback`
+- Stores shown vs selected tree IDs for future retraining
+
+6. **Scenario Simulation Endpoint**
+- API: `POST /api/web/area/<area_id>/scenario`
+- Estimates species mix and tree count to move from current AQI to target AQI
+
+---
+
 ## 📋 System Overview
 
 ```

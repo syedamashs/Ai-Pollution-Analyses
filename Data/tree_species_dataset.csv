@@ -1,0 +1,16 @@
+id,name,scientific_name,aqi_min,aqi_max,pollution_tolerance,water_need,growth_rate,maintenance,canopy_score,native_score,benefits,reason
+1,Neem,Azadirachta indica,1,5,5,2,4,2,4,5,Medicinal value and strong pollutant uptake,Performs well across almost all AQI levels
+2,Pongamia,Pongamia pinnata,2,5,5,2,4,2,4,5,Nitrogen fixing and biofuel potential,Very hardy in moderate to very poor air
+3,Pipal,Ficus religiosa,1,5,5,3,3,3,5,5,High oxygen release and large canopy,Strong PM capture with broad adaptability
+4,Tamarind,Tamarindus indica,1,4,4,2,3,2,4,5,Fruit and urban shade,Good pollution tolerance with low maintenance
+5,Banyan,Ficus benghalensis,3,5,5,3,3,4,5,5,Massive canopy and pollutant filtering,Excellent for high pollution corridors
+6,Acacia,Acacia nilotica,3,5,5,1,4,2,3,4,Drought resistance and toughness,Handles degraded and polluted urban pockets
+7,Palash,Butea monosperma,3,5,5,2,3,2,3,4,Soil improvement and resilience,Suited for high AQI and hard soil
+8,Cassia,Cassia fistula,2,3,3,3,4,2,3,4,Ornamental and medicinal value,Best in fair to moderate AQI zones
+9,Terminalia,Terminalia arjuna,2,4,4,3,3,3,4,5,Roadside pollutant interception,Useful near traffic and river belts
+10,Mango,Mangifera indica,1,3,3,3,3,3,4,5,Fruit yield with ecological benefits,Better where AQI is good to moderate
+11,Jamun,Syzygium cumini,1,4,4,3,3,3,4,5,Fruit and groundwater support,Reliable in mixed urban conditions
+12,Coconut,Cocos nucifera,1,3,2,4,3,3,2,4,Economic output and greenery,Prefer lower pollution and better water access
+13,Jackfruit,Artocarpus heterophyllus,1,3,3,4,3,3,4,5,Large canopy and food value,Works where AQI is not very poor
+14,Albizia,Albizia procera,3,5,5,2,4,2,4,4,Fast growth and nitrogen fixation,Strong candidate for very polluted zones
+15,Prosopis,Prosopis cineraria,4,5,5,1,3,1,3,4,Extreme drought and pollution tolerance,Best for severe urban stress

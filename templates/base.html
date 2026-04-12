@@ -35,6 +35,10 @@
                     <span class="nav-icon">🔮</span>
                     <span>Forecasting</span>
                 </button>
+                <button class="nav-item {% if request.endpoint == 'model_evaluation' %}active{% endif %}" onclick="navigateTo('/model-evaluation')">
+                    <span class="nav-icon">🧪</span>
+                    <span>Model Evaluation</span>
+                </button>
                 <button class="nav-item {% if request.endpoint == 'about' %}active{% endif %}" onclick="navigateTo('/about')">
                     <span class="nav-icon">ℹ️</span>
                     <span>About Project</span>
