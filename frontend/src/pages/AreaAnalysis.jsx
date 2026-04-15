@@ -3,7 +3,7 @@ import { apiService } from '../services/api'
 import { EmptyState, PageHero, SectionHeading, Surface } from '../components/UiKit'
 
 export default function AreaAnalysis({ areas }) {
-  const [selectedArea, setSelectedArea] = useState(areas[0]?.id || 'madurai')
+  const [selectedArea, setSelectedArea] = useState(areas[0]?.id || 'periyar')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -44,7 +44,7 @@ export default function AreaAnalysis({ areas }) {
       <PageHero
         eyebrow="Satellite intelligence"
         title="Map plantation opportunity from image data, not guesswork."
-        description="This page turns each city into a quick land-suitability snapshot with free-area metrics, vegetation coverage, and image-level evidence."
+        description="This page turns each area into a quick land-suitability snapshot with free-area metrics, vegetation coverage, and image-level evidence."
         accent="violet"
         stats={[
           { label: 'Area', value: selectedAreaName },
@@ -98,7 +98,7 @@ export default function AreaAnalysis({ areas }) {
           <Surface>
             <SectionHeading
               title="Analysis summary"
-              description="The most useful numbers are surfaced first, with enough context to understand the city at a glance."
+              description="The most useful numbers are surfaced first, with enough context to understand the area at a glance."
             />
             <div className="grid gap-8 md:grid-cols-2">
               <div>
@@ -166,7 +166,7 @@ export default function AreaAnalysis({ areas }) {
           </div>
         </>
       ) : (
-        <EmptyState title="No analysis data available" description="Pick another city or wait a moment for the area analysis request to finish." />
+        <EmptyState title="No analysis data available" description="Pick another area or wait a moment for the analysis request to finish." />
       )}
     </div>
   )

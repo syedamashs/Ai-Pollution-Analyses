@@ -11,7 +11,7 @@ export default function ModelEvaluation() {
         accent="amber"
         stats={[
           { label: 'Forecasting', value: '7-day' },
-          { label: 'Training window', value: '100 days' },
+          { label: 'Training window', value: '50 days' },
           { label: 'Tree profiles', value: '500+' },
           { label: 'Response time', value: '< 500ms' },
         ]}
@@ -28,7 +28,7 @@ export default function ModelEvaluation() {
             <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-slate-950">🔮 Forecasting Model</h2>
             <div className="space-y-4">
               <MetricItem label="Model" value="Holt-Winters Exponential Smoothing" />
-              <MetricItem label="Training Data" value="100 days of historical AQI" />
+              <MetricItem label="Training Data" value="50 days of historical CPCB AQI" />
               <MetricItem label="Forecast Horizon" value="7 days ahead" />
               <MetricItem label="Update Frequency" value="Every request" />
               <MetricItem label="Response Time" value="< 500ms" />
@@ -48,7 +48,7 @@ export default function ModelEvaluation() {
             <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-slate-950">🌳 Tree Recommendation Model</h2>
             <div className="space-y-4">
               <MetricItem label="Training Data" value="500+ tree species profiles" />
-              <MetricItem label="Features" value="AQI level, city climate, soil type" />
+              <MetricItem label="Features" value="AQI level, area microclimate, soil type" />
               <MetricItem label="Ranking Method" value="Pollution tolerance + benefits scoring" />
               <MetricItem label="Output" value="Top 6 recommended species per AQI level" />
               <MetricItem label="Feedback Loop" value="User ratings improve model" />
@@ -90,7 +90,7 @@ export default function ModelEvaluation() {
               </tr>
               <tr className="border-b border-slate-100">
                 <td className="px-4 py-4 text-slate-700">Training Size</td>
-                <td className="px-4 py-4 text-slate-700">100 days historical AQI</td>
+                <td className="px-4 py-4 text-slate-700">50 days historical CPCB AQI</td>
                 <td className="px-4 py-4 text-slate-700">500+ tree profiles</td>
               </tr>
               <tr>

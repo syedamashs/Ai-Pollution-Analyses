@@ -11,11 +11,11 @@ import ModelEvaluation from './pages/ModelEvaluation'
 
 function App() {
   const [areas] = useState([
-    { id: 'madurai', name: 'Madurai' },
-    { id: 'chennai', name: 'Chennai' },
-    { id: 'coimbatore', name: 'Coimbatore' },
-    { id: 'dindigul', name: 'Dindigul' },
-    { id: 'trichy', name: 'Trichy' },
+    { id: 'periyar', name: 'Periyar' },
+    { id: 'arapalayam', name: 'Arapalayam' },
+    { id: 'maatuthavani', name: 'Maatuthavani' },
+    { id: 'thiruparankundram', name: 'Thiruparankundram' },
+    { id: 'thirumangalam', name: 'Thirumangalam' },
   ])
 
   return (

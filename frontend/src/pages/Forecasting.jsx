@@ -3,7 +3,7 @@ import { apiService } from '../services/api'
 import { EmptyState, PageHero, SectionHeading, Surface } from '../components/UiKit'
 
 export default function Forecasting({ areas }) {
-  const [selectedArea, setSelectedArea] = useState(areas[0]?.id || 'madurai')
+  const [selectedArea, setSelectedArea] = useState(areas[0]?.id || 'periyar')
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -32,11 +32,12 @@ export default function Forecasting({ areas }) {
   }
 
   const getAqiColor = (value) => {
-    if (value <= 1.5) return '#10b981'
-    if (value <= 2.5) return '#eab308'
-    if (value <= 3.5) return '#f97316'
-    if (value <= 4.5) return '#ef4444'
-    return '#8b5cf6'
+    if (value <= 50) return '#10b981'
+    if (value <= 100) return '#84cc16'
+    if (value <= 200) return '#eab308'
+    if (value <= 300) return '#f97316'
+    if (value <= 400) return '#ef4444'
+    return '#7c3aed'
   }
 
   return (
@@ -47,7 +48,7 @@ export default function Forecasting({ areas }) {
         description="The forecast screen focuses on trend, confidence, and the exact values you need to plan next steps without waiting on heavy compute."
         accent="emerald"
         stats={[
-          { label: 'City', value: areas.find((area) => area.id === selectedArea)?.name || 'Madurai' },
+          { label: 'Area', value: areas.find((area) => area.id === selectedArea)?.name || 'Periyar' },
           { label: 'Forecast avg', value: forecast ? forecast.statistics.forecast_avg.toFixed(1) : 'Loading' },
           { label: 'Forecast min', value: forecast ? forecast.statistics.forecast_min.toFixed(1) : '—' },
           { label: 'Forecast max', value: forecast ? forecast.statistics.forecast_max.toFixed(1) : '—' },
@@ -58,7 +59,7 @@ export default function Forecasting({ areas }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Filter</p>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Select a city</h2>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Select an area</h2>
           </div>
           <select
             value={selectedArea}
@@ -160,8 +161,8 @@ function StatBox({ label, value, color = 'text-gray-900', tone = 'emerald' }) {
 
 function ForecastChart({ forecast }) {
   const values = forecast.model.values
-  const minVal = Math.min(...values, 1)
-  const maxVal = Math.max(...values, 5)
+  const minVal = Math.max(0, Math.min(...values) - 20)
+  const maxVal = Math.min(500, Math.max(...values) + 20)
   const range = maxVal - minVal || 1
 
   const canvasWidth = 800

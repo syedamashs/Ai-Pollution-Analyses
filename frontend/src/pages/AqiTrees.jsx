@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { apiService } from '../services/api'
-import { EmptyState, MetricCard, PageHero, SectionHeading, Surface } from '../components/UiKit'
+import { AQICard, EmptyState, MetricCard, PageHero, SectionHeading, Surface } from '../components/UiKit'
 
 export default function AqiTrees({ areas }) {
   const [selectedArea, setSelectedArea] = useState(areas[0]?.id || 'madurai')
@@ -68,7 +68,7 @@ export default function AqiTrees({ areas }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Filter</p>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Choose a city</h2>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Choose an area</h2>
           </div>
           <select
             value={selectedArea}
@@ -92,38 +92,17 @@ export default function AqiTrees({ areas }) {
       {!loading && (
         <>
             {/* Current AQI Display */}
-            {currentColor && aqi && (
-              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-                <div className="glass-panel rounded-[1.75rem] p-8 text-center" style={{ background: `linear-gradient(135deg, ${currentColor.bg}, rgba(255,255,255,0.92))` }}>
-                  <p className="text-xs font-bold uppercase tracking-[0.24em]" style={{ color: currentColor.text }}>Current AQI index</p>
-                  <p className="mt-4 text-7xl font-extrabold tracking-tight" style={{ color: currentColor.text }}>{aqi.aqi}</p>
-                  <p className="mt-3 text-2xl font-extrabold" style={{ color: currentColor.text }}>{currentColor.label}</p>
-                  <p className="mt-6 text-sm font-semibold" style={{ color: currentColor.text }}>Updated {new Date(aqi.timestamp).toLocaleString()}</p>
-                </div>
-
-                <Surface>
-                  <SectionHeading title="7-day AQI trend" description="A compact weekly view that gives the page some movement and context." />
-                  {trend.length > 0 ? (
-                    <div className="flex items-end justify-between gap-2 rounded-[1.5rem] bg-slate-50 px-4 py-6">
-                      {trend.map((item, idx) => (
-                        <div key={idx} className="flex flex-1 flex-col items-center">
-                          <div
-                            className="w-full rounded-t-2xl bg-gradient-to-t from-sky-500 to-cyan-400 transition-all"
-                            style={{
-                              minHeight: '18px',
-                              height: `${(item.value / 5) * 180}px`,
-                            }}
-                          />
-                          <p className="mt-3 text-xs font-semibold text-slate-500">{item.date.substring(5, 10)}</p>
-                          <p className="text-xs font-extrabold text-slate-700">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState title="No trend data available" description="The API returned no trend points for this city right now." />
-                  )}
-                </Surface>
-              </div>
+            {aqi && (
+              <AQICard
+                aqi={aqi.aqi}
+                category={aqi.category}
+                pm25={aqi.pm25}
+                pm10={aqi.pm10}
+                no2={aqi.no2}
+                so2={aqi.so2}
+                co={aqi.co}
+                o3={aqi.o3}
+              />
             )}
 
             {/* Tree Recommendations */}

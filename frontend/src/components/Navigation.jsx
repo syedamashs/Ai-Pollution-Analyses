@@ -15,7 +15,7 @@ export default function Navigation() {
                   🌳
                 </span>
                 <span>
-                  GreenTamilNadu
+                  GreenMadurai
                   <span className="block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Environmental Intelligence</span>
                 </span>
               </span>

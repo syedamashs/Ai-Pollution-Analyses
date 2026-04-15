@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Flask Web UI for GreenTamilNadu - AI Pollution Analysis System"""
+"""Flask Web UI for GreenMadurai - AI Pollution Analysis System"""
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from pathlib import Path
@@ -535,7 +535,7 @@ def process_dindigul_images():
 
 def startup_initialization():
     """Initialize data on app startup"""
-    print("🚀 Starting GreenTamilNadu system initialization...")
+    print("🚀 Starting GreenMadurai system initialization...")
     
     # Process all city images
     process_madurai_images()

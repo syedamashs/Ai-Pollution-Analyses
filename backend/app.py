@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Flask Web UI for GreenTamilNadu - AI Pollution Analysis System"""
+"""Flask Web UI for GreenMadurai - AI Pollution Analysis System"""
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from pathlib import Path
@@ -16,19 +16,73 @@ from scripts.forecasting import get_aqi_forecaster
 # Configuration and defaults
 OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', 'b94f9c7458972cd296068cfa48e2db31')
 
-# City coordinates and simple area list
-CITY_COORDS = {
-    'madurai': {'lat': 9.9252, 'lon': 78.1198, 'name': 'Madurai'},
-    'chennai': {'lat': 13.0827, 'lon': 80.2707, 'name': 'Chennai'},
-    'coimbatore': {'lat': 11.0081, 'lon': 76.8956, 'name': 'Coimbatore'},
-    'dindigul': {'lat': 10.3673, 'lon': 77.9757, 'name': 'Dindigul'},
-    'trichy': {'lat': 10.7905, 'lon': 78.7047, 'name': 'Trichy'}
+# Madurai areas with coordinates and metadata
+MADURAI_AREAS = {
+    'maatuthavani': {'lat': 9.9195, 'lon': 78.1193, 'name': 'Maatuthavani', 'city_folder': 'Madurai/Maatuthavani'},
+    'arapalayam': {'lat': 9.9320, 'lon': 78.1026, 'name': 'Arapalayam', 'city_folder': 'Madurai/Arapalayam'},
+    'periyar': {'lat': 9.9178, 'lon': 78.1106, 'name': 'Periyar', 'city_folder': 'Madurai/Periyar'},
+    'thiruparankundram': {'lat': 9.8810, 'lon': 78.0710, 'name': 'Thiruparankundram', 'city_folder': 'Madurai/Thiruparankundram'},
+    'thirumangalam': {'lat': 9.8216, 'lon': 77.9906, 'name': 'Thirumangalam', 'city_folder': 'Madurai/Thirumangalam'}
 }
 
-AREAS = [{'id': k, 'name': v['name']} for k, v in CITY_COORDS.items()]
+# Keep backward compatibility
+CITY_COORDS = MADURAI_AREAS
+AREAS = [{'id': k, 'name': v['name']} for k, v in MADURAI_AREAS.items()]
 
 # In-memory holder for analysis results
 ANALYSIS_DATA = {}
+
+# CPCB AQI Breakpoints and Index values (India Standard)
+AQI_BREAKPOINTS = {
+    'pm25': [
+        {'breakpoint': (0, 30), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (31, 60), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (61, 90), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (91, 120), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (121, 250), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (251, 9999), 'aqi': (401, 500), 'category': 'Severe'}
+    ],
+    'pm10': [
+        {'breakpoint': (0, 50), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (51, 100), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (101, 250), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (251, 350), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (351, 430), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (431, 9999), 'aqi': (401, 500), 'category': 'Severe'}
+    ],
+    'no2': [
+        {'breakpoint': (0, 40), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (41, 80), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (81, 180), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (181, 280), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (281, 400), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (401, 9999), 'aqi': (401, 500), 'category': 'Severe'}
+    ],
+    'so2': [
+        {'breakpoint': (0, 40), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (41, 80), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (81, 380), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (381, 800), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (801, 1600), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (1601, 9999), 'aqi': (401, 500), 'category': 'Severe'}
+    ],
+    'co': [
+        {'breakpoint': (0, 1000), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (1001, 2000), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (2001, 10000), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (10001, 17000), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (17001, 34000), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (34001, 9999999), 'aqi': (401, 500), 'category': 'Severe'}
+    ],
+    'o3': [
+        {'breakpoint': (0, 50), 'aqi': (0, 50), 'category': 'Good'},
+        {'breakpoint': (51, 100), 'aqi': (51, 100), 'category': 'Satisfactory'},
+        {'breakpoint': (101, 168), 'aqi': (101, 200), 'category': 'Moderately Polluted'},
+        {'breakpoint': (169, 208), 'aqi': (201, 300), 'category': 'Poor'},
+        {'breakpoint': (209, 748), 'aqi': (301, 400), 'category': 'Very Poor'},
+        {'breakpoint': (749, 9999), 'aqi': (401, 500), 'category': 'Severe'}
+    ]
+}
 
 # In-memory cache for AQI data (to avoid repeated API calls)
 AQI_CACHE = {}
@@ -185,11 +239,73 @@ def segment_image(image_path):
         print(f"Error segmenting image {image_path}: {e}")
         return None
 
+def calculate_aqi(pm25, pm10, no2, so2, co, o3):
+    """
+    Calculate AQI using CPCB (Central Pollution Control Board) formula
+    AQI = max(AQI_pm25, AQI_pm10, AQI_no2, AQI_so2, AQI_co, AQI_o3)
+    """
+    def get_aqi_for_pollutant(pollutant_name, value):
+        """Calculate AQI for a single pollutant"""
+        if pollutant_name not in AQI_BREAKPOINTS:
+            return 0
+        
+        breakpoints = AQI_BREAKPOINTS[pollutant_name]
+        for bp in breakpoints:
+            blo, bhi = bp['breakpoint']
+            ilo, ihi = bp['aqi']
+            
+            if blo <= value <= bhi:
+                # CPCB formula: AQI = (IHI - ILO) / (BHI - BLO) * (C - BLO) + ILO
+                aqi_value = ((ihi - ilo) / (bhi - blo)) * (value - blo) + ilo
+                return round(aqi_value, 2)
+        
+        # If value exceeds all breakpoints, return max AQI
+        return 500
+    
+    # Calculate AQI for each pollutant
+    pollutant_values = {
+        'pm25': pm25,
+        'pm10': pm10,
+        'no2': no2,
+        'so2': so2,
+        'co': co,
+        'o3': o3
+    }
+    
+    aqi_values = {}
+    for pollutant, value in pollutant_values.items():
+        if value is not None:
+            aqi_values[pollutant] = get_aqi_for_pollutant(pollutant, value)
+    
+    # Final AQI is the maximum of all pollutants
+    final_aqi = max(aqi_values.values()) if aqi_values else 0
+    
+    # Determine category
+    def get_aqi_category(aqi):
+        if aqi <= 50:
+            return 'Good'
+        elif aqi <= 100:
+            return 'Satisfactory'
+        elif aqi <= 200:
+            return 'Moderately Polluted'
+        elif aqi <= 300:
+            return 'Poor'
+        elif aqi <= 400:
+            return 'Very Poor'
+        else:
+            return 'Severe'
+    
+    return {
+        'aqi': round(final_aqi, 2),
+        'category': get_aqi_category(final_aqi),
+        'breakdown': aqi_values
+    }
+
 def get_aqi_for_city(city_id):
-    """Get current AQI from OpenWeatherMap API with caching and fallback"""
+    """Get AQI for area - fetches pollutant data and calculates using CPCB formula"""
     try:
         if city_id not in CITY_COORDS:
-            return {'aqi': 2, 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800}
+            return {'aqi': 100, 'category': 'Satisfactory', 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800, 'timestamp': datetime.now().isoformat()}
         
         # Check cache first
         if city_id in AQI_CACHE:
@@ -207,19 +323,28 @@ def get_aqi_for_city(city_id):
             
             if 'list' in data and len(data['list']) > 0:
                 sample = data['list'][0]
-                main = sample.get('main', {})
                 components = sample.get('components', {})
 
-                aqi_cat = main.get('aqi', 0)
+                # Extract pollutant values
+                pm25 = components.get('pm2_5', 35)
+                pm10 = components.get('pm10', 50)
+                no2 = components.get('no2', 40)
+                so2 = components.get('so2', 20)
+                co = components.get('co', 800)
+                o3 = components.get('o3', 60)
 
+                # Calculate AQI using CPCB formula
+                aqi_calc = calculate_aqi(pm25, pm10, no2, so2, co, o3)
+                
                 aqi_result = {
-                    'aqi': int(aqi_cat) if isinstance(aqi_cat, (int, float)) else 0,
-                    'pm25': round(components.get('pm2_5', 0), 2),
-                    'pm10': round(components.get('pm10', 0), 2),
-                    'o3': round(components.get('o3', 0), 2),
-                    'no2': round(components.get('no2', 0), 2),
-                    'so2': round(components.get('so2', 0), 2),
-                    'co': round(components.get('co', 0), 2),
+                    'aqi': aqi_calc['aqi'],
+                    'category': aqi_calc['category'],
+                    'pm25': round(pm25, 2),
+                    'pm10': round(pm10, 2),
+                    'o3': round(o3, 2),
+                    'no2': round(no2, 2),
+                    'so2': round(so2, 2),
+                    'co': round(co, 2),
                     'timestamp': datetime.now().isoformat()
                 }
                 
@@ -228,6 +353,7 @@ def get_aqi_for_city(city_id):
                     'timestamp': datetime.now()
                 }
                 
+                print(f"✅ AQI for {city_id}: {aqi_result['aqi']} ({aqi_result['category']})")
                 return aqi_result
         except requests.exceptions.Timeout:
             print(f"⚠️  API timeout for {city_id} - using fallback data")
@@ -236,8 +362,10 @@ def get_aqi_for_city(city_id):
         except Exception as e:
             print(f"⚠️  API error for {city_id}: {e}")
         
+        # Fallback data
         fallback_data = {
-            'aqi': 2,
+            'aqi': 100,
+            'category': 'Satisfactory',
             'pm25': 35,
             'pm10': 50,
             'o3': 60,
@@ -255,7 +383,7 @@ def get_aqi_for_city(city_id):
         return fallback_data
     except Exception as e:
         print(f"Error in get_aqi_for_city: {e}")
-        return {'aqi': 2, 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800}
+        return {'aqi': 100, 'category': 'Satisfactory', 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800, 'timestamp': datetime.now().isoformat()}
 
 
 # Legacy HTML pages for the non-React UI
@@ -327,17 +455,17 @@ def forecasting():
 
 def _build_synthetic_aqi_history(city_id, days=100):
     """Build a smooth fallback AQI history when the API history is unavailable."""
-    current_aqi = float(get_aqi_for_city(city_id).get('aqi', 2))
+    current_aqi = float(get_aqi_for_city(city_id).get('aqi', 100))
     np.random.seed(abs(hash(city_id)) % (2 ** 32))
     t = np.arange(days)
-    seasonal = 0.25 * np.sin(2 * np.pi * t / 7)
-    drift = 0.05 * np.sin(2 * np.pi * t / 30)
-    noise = np.random.normal(0, 0.12, days)
-    series = np.clip(current_aqi + seasonal + drift + noise, 1, 5)
+    seasonal = 12.0 * np.sin(2 * np.pi * t / 7)
+    drift = 8.0 * np.sin(2 * np.pi * t / 30)
+    noise = np.random.normal(0, 6.0, days)
+    series = np.clip(current_aqi + seasonal + drift + noise, 0, 500)
     return [round(float(value), 2) for value in series.tolist()]
 
-def get_aqi_history_for_city(city_id, history_days=100):
-    """Fetch historical AQI values for a city and return a daily series."""
+def get_aqi_history_for_city(city_id, history_days=50):
+    """Fetch historical AQI values for an area and return a daily CPCB AQI series."""
     try:
         if city_id not in CITY_COORDS:
             return []
@@ -369,7 +497,14 @@ def get_aqi_history_for_city(city_id, history_days=100):
                 continue
 
             try:
-                aqi_value = float(item.get('main', {}).get('aqi', 0))
+                components = item.get('components', {})
+                pm25 = float(components.get('pm2_5', 0) or 0)
+                pm10 = float(components.get('pm10', 0) or 0)
+                no2 = float(components.get('no2', 0) or 0)
+                so2 = float(components.get('so2', 0) or 0)
+                co = float(components.get('co', 0) or 0)
+                o3 = float(components.get('o3', 0) or 0)
+                aqi_value = float(calculate_aqi(pm25, pm10, no2, so2, co, o3).get('aqi', 0))
             except Exception:
                 continue
 
@@ -409,8 +544,8 @@ def get_aqi_history_for_city(city_id, history_days=100):
         }
         return fallback_series
 
-def get_aqi_forecast_summary_for_city(city_id, forecast_days=7, history_days=100):
-    """Build a forecast summary from the city's historical AQI series."""
+def get_aqi_forecast_summary_for_city(city_id, forecast_days=7, history_days=50):
+    """Build a forecast summary from the area's historical AQI series."""
     forecaster = get_aqi_forecaster()
     forecaster.historical_data = get_aqi_history_for_city(city_id, history_days=history_days)
     return forecaster.get_forecast_summary(forecast_days=forecast_days)
@@ -438,10 +573,15 @@ def get_aqi_trend(city_id):
             
             if 'list' in data:
                 for item in data['list']:
-                    main = item.get('main', {})
-                    aqi_cat = main.get('aqi', 0)
                     try:
-                        aqi_val = int(aqi_cat)
+                        components = item.get('components', {})
+                        pm25 = float(components.get('pm2_5', 0) or 0)
+                        pm10 = float(components.get('pm10', 0) or 0)
+                        no2 = float(components.get('no2', 0) or 0)
+                        so2 = float(components.get('so2', 0) or 0)
+                        co = float(components.get('co', 0) or 0)
+                        o3 = float(components.get('o3', 0) or 0)
+                        aqi_val = int(round(calculate_aqi(pm25, pm10, no2, so2, co, o3).get('aqi', 0)))
                     except Exception:
                         aqi_val = 0
 
@@ -454,11 +594,22 @@ def get_aqi_trend(city_id):
             current_aqi = get_aqi_for_city(city_id)
             if current_aqi and 'aqi' in current_aqi:
                 daily_aqi[today_str] = current_aqi['aqi']
-            
-            label_map = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
+
+            def get_label(aqi_value):
+                if aqi_value <= 50:
+                    return 'Good'
+                if aqi_value <= 100:
+                    return 'Satisfactory'
+                if aqi_value <= 200:
+                    return 'Moderately Polluted'
+                if aqi_value <= 300:
+                    return 'Poor'
+                if aqi_value <= 400:
+                    return 'Very Poor'
+                return 'Severe'
 
             trend = [
-                {'date': date, 'value': value, 'label': label_map.get(value, 'Unknown')}
+                {'date': date, 'value': value, 'label': get_label(value)}
                 for date, value in sorted(daily_aqi.items())
             ]
             return trend[-7:]
@@ -475,26 +626,32 @@ def get_aqi_trend(city_id):
 def get_tree_category(aqi):
     """Determine tree recommendation category based on AQI"""
     try:
-        a = int(aqi)
+        a = float(aqi)
     except Exception:
-        a = 0
+        a = 500
 
-    mapping = {
-        1: 'good',
-        2: 'moderate',
-        3: 'unhealthy_sensitive',
-        4: 'unhealthy',
-        5: 'very_unhealthy'
-    }
+    if a <= 50:
+        return 'good'
+    if a <= 100:
+        return 'moderate'
+    if a <= 200:
+        return 'unhealthy_sensitive'
+    if a <= 300:
+        return 'unhealthy'
+    if a <= 400:
+        return 'very_unhealthy'
+    return 'hazardous'
 
-    return mapping.get(a, 'hazardous')
-
-def process_city_images(city_name, city_folder, image_prefix):
-    """Process all images for a city on startup"""
+def process_city_images(city_name, city_folder, source_prefix, output_prefix=None):
+    """Process all images for an area on startup."""
     global ANALYSIS_DATA
-    
-    data_dir = Path(f'Data/{city_folder}')
-    images = sorted(data_dir.glob(f'{image_prefix}_*.png'))
+
+    # Accept both backend/Data/* and workspace-root Data/* so user-provided folders work.
+    candidate_dirs = [Path(f'Data/{city_folder}'), Path(f'../Data/{city_folder}')]
+    data_dir = next((directory for directory in candidate_dirs if directory.exists()), candidate_dirs[0])
+
+    area_prefix = output_prefix or source_prefix
+    images = sorted(data_dir.glob(f'{source_prefix}_*.png'))
     images_output_dir = Path('../static/images')
     images_output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -513,7 +670,7 @@ def process_city_images(city_name, city_folder, image_prefix):
         if result:
             img_num = img_path.stem.split('_')[1]
             
-            original_path = images_output_dir / f'{image_prefix}_{img_num}.png'
+            original_path = images_output_dir / f'{area_prefix}_{img_num}.png'
             try:
                 cv2.imwrite(str(original_path), result.get('original'))
             except Exception:
@@ -523,10 +680,10 @@ def process_city_images(city_name, city_folder, image_prefix):
                 except Exception:
                     pass
 
-            segmented_path = images_output_dir / f'{image_prefix}_{img_num}_segmented.png'
+            segmented_path = images_output_dir / f'{area_prefix}_{img_num}_segmented.png'
             cv2.imwrite(str(segmented_path), result['segmented'])
 
-            mask_path = images_output_dir / f'{image_prefix}_{img_num}_free_mask.png'
+            mask_path = images_output_dir / f'{area_prefix}_{img_num}_free_mask.png'
             cv2.imwrite(str(mask_path), result['mask'])
             
             all_stats['total_free_percentage'] += result['free_percentage']
@@ -551,12 +708,20 @@ def process_city_images(city_name, city_folder, image_prefix):
         all_stats['avg_trees'] = int(all_stats['total_trees'] / all_stats['image_count'])
         all_stats['avg_free_trees'] = int(all_stats['total_free_trees'] / all_stats['image_count'])
         all_stats['avg_plantation_area'] = int(all_stats['total_plantation_area'] / all_stats['image_count'])
+        
+        print(f"✅ Processed {all_stats['image_count']} {city_name} images")
+        print(f"   Avg free land: {all_stats['avg_free_percentage']}%")
+        print(f"   Avg trees: {all_stats['avg_trees']}")
+    else:
+        print(f"⚠️ No images found for {city_name} - skipping analysis")
+        all_stats['avg_free_percentage'] = 0
+        all_stats['avg_green_percentage'] = 0
+        all_stats['avg_trees'] = 0
+        all_stats['avg_free_trees'] = 0
+        all_stats['avg_plantation_area'] = 0
     
+    all_stats['image_prefix'] = area_prefix
     ANALYSIS_DATA[city_name] = all_stats
-    
-    print(f"✅ Processed {all_stats['image_count']} {city_name} images")
-    print(f"   Avg free land: {all_stats['avg_free_percentage']}%")
-    print(f"   Avg trees: {all_stats['avg_trees']}")
 
 def aggregate_all_cities_data():
     """Aggregate data from all processed cities"""
@@ -584,13 +749,14 @@ def aggregate_all_cities_data():
 
 def startup_initialization():
     """Initialize data on app startup"""
-    print("🚀 Starting GreenTamilNadu system initialization...")
+    print("🚀 Starting GreenMadurai system initialization...")
     
-    process_city_images('madurai', 'Madurai', 'madurai')
-    process_city_images('dindigul', 'Dindigul', 'dindigul')
-    process_city_images('chennai', 'Chennai', 'chennai')
-    process_city_images('coimbatore', 'Coimbatore', 'coimbatore')
-    process_city_images('trichy', 'Trichy', 'trichy')
+    # Process each Madurai area folder and normalize generated filenames to area ids.
+    process_city_images('arapalayam', 'Arapalayam', 'coimbatore', 'arapalayam')
+    process_city_images('maatuthavani', 'Maatuthavani', 'dindigul', 'maatuthavani')
+    process_city_images('periyar', 'Periyar', 'chennai', 'periyar')
+    process_city_images('thiruparankundram', 'Thiruparankundram', 'trichy', 'thiruparankundram')
+    process_city_images('thirumangalam', 'Thirumangalam', 'madurai', 'thirumangalam')
     
     print("✅ System initialized successfully")
 
@@ -616,14 +782,7 @@ def web_get_analysis(area_id):
     
     data = ANALYSIS_DATA[area_id]
     
-    image_prefix_map = {
-        'madurai': 'madurai',
-        'dindigul': 'dindigul',
-        'chennai': 'chennai',
-        'coimbatore': 'coimbatore',
-        'trichy': 'trichy'
-    }
-    image_prefix = image_prefix_map.get(area_id, 'madurai')
+    image_prefix = data.get('image_prefix', area_id)
     
     return jsonify({
         'areaId': area_id,
@@ -634,31 +793,18 @@ def web_get_analysis(area_id):
         'estimatedTrees': data.get('avg_trees', 0),
         'treesInFreeAreas': data.get('avg_free_trees', 0),
         'image_count': data.get('image_count', 0),
+        'image_prefix': image_prefix,
         'images': data.get('images', [])
     })
 
 @app.route('/api/web/area/<area_id>/aqi')
 def web_get_aqi(area_id):
-    """Get current AQI for area"""
+    """Get current AQI for area (calculated using CPCB formula)"""
     aqi_data = get_aqi_for_city(area_id)
-    
-    aqi_value = aqi_data.get('aqi', 0)
-    def us_aqi_level(aqi):
-        try:
-            v = int(aqi)
-        except Exception:
-            return 'Unknown'
-        return {
-            1: 'Good',
-            2: 'Fair',
-            3: 'Moderate',
-            4: 'Poor',
-            5: 'Very Poor'
-        }.get(v, 'Unknown')
 
     return jsonify({
-        'aqi': aqi_value,
-        'level': us_aqi_level(aqi_value),
+        'aqi': aqi_data.get('aqi', 100),
+        'category': aqi_data.get('category', 'Satisfactory'),
         'pm25': aqi_data.get('pm25', 0),
         'pm10': aqi_data.get('pm10', 0),
         'o3': aqi_data.get('o3', 0),
@@ -788,17 +934,52 @@ def web_store_feedback():
 
 @app.route('/api/web/area/<area_id>/forecast', methods=['GET'])
 def web_get_forecast(area_id):
-    """Get 7-day AQI forecast for a city using historical AQI and Holt-Winters."""
+    """Get 7-day AQI forecast for an area using 50-day CPCB AQI history and Holt-Winters."""
     if area_id not in CITY_COORDS:
         return jsonify({'error': 'City not found'}), 404
     
     try:
-        summary = get_aqi_forecast_summary_for_city(area_id, forecast_days=7, history_days=100)
+        history_days = 50
+        summary = get_aqi_forecast_summary_for_city(area_id, forecast_days=7, history_days=history_days)
+        live_aqi = get_aqi_for_city(area_id).get('aqi', summary.get('statistics', {}).get('current_aqi', 0))
+        if 'statistics' in summary:
+            summary['statistics']['current_aqi'] = round(float(live_aqi), 1)
+
+        # Keep 7-day predictions operationally close to the live AQI for area-level planning.
+        # This prevents unrealistic jumps when older history has temporary spikes.
+        model_values = summary.get('model', {}).get('values', [])
+        if model_values:
+            live_value = float(live_aqi)
+            band = max(5.0, min(12.0, live_value * 0.15))
+            max_step = max(2.0, min(5.0, live_value * 0.08))
+
+            adjusted_values = []
+            prev_value = live_value
+            for value in model_values:
+                clamped_target = max(live_value - band, min(live_value + band, float(value)))
+                next_value = prev_value + max(-max_step, min(max_step, clamped_target - prev_value))
+                adjusted_values.append(round(next_value, 1))
+                prev_value = next_value
+
+            summary['model']['values'] = adjusted_values
+            summary['statistics']['forecast_avg'] = round(float(np.mean(adjusted_values)), 1)
+            summary['statistics']['forecast_min'] = round(float(np.min(adjusted_values)), 1)
+            summary['statistics']['forecast_max'] = round(float(np.max(adjusted_values)), 1)
+            if adjusted_values[-1] > live_value + 1:
+                summary['statistics']['trend'] = 'up'
+            elif adjusted_values[-1] < live_value - 1:
+                summary['statistics']['trend'] = 'down'
+            else:
+                summary['statistics']['trend'] = 'flat'
         
         return jsonify({
             'success': True,
-            'city': CITY_COORDS[area_id]['name'],
-            'forecast': summary
+            'area': CITY_COORDS[area_id]['name'],
+            'forecast': summary,
+            'training': {
+                'historyDays': history_days,
+                'aqiSource': 'CPCB formula from PM2.5, PM10, NO2, SO2, CO, O3 (OpenWeather components)'
+            }
         })
         
     except Exception as e:
@@ -810,18 +991,23 @@ def web_get_forecast(area_id):
 
 @app.route('/api/web/forecast-all', methods=['GET'])
 def web_get_forecast_all():
-    """Get 7-day AQI forecast for all cities"""
+    """Get 7-day AQI forecast for all areas"""
     try:
         all_forecasts = {}
+        history_days = 50
         
         for area_id in CITY_COORDS.keys():
-            summary = get_aqi_forecast_summary_for_city(area_id, forecast_days=7, history_days=100)
+            summary = get_aqi_forecast_summary_for_city(area_id, forecast_days=7, history_days=history_days)
             
             all_forecasts[area_id] = summary
         
         return jsonify({
             'success': True,
-            'forecasts': all_forecasts
+            'forecasts': all_forecasts,
+            'training': {
+                'historyDays': history_days,
+                'aqiSource': 'CPCB formula from PM2.5, PM10, NO2, SO2, CO, O3 (OpenWeather components)'
+            }
         })
         
     except Exception as e:

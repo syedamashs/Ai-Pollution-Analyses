@@ -29,9 +29,9 @@ class AQIForcaster:
         """Generate a realistic AQI series for testing or fallback use."""
         np.random.seed(42)
         t = np.arange(days)
-        base = 2.4 + 0.18 * np.sin(2 * np.pi * t / 7) + 0.01 * t
-        noise = np.random.normal(0, 0.12, days)
-        data = np.clip(base + noise, 1, 5)
+        base = 95 + 12 * np.sin(2 * np.pi * t / 7) + 0.4 * t
+        noise = np.random.normal(0, 6.0, days)
+        data = np.clip(base + noise, 0, 500)
         self.historical_data = [round(float(value), 2) for value in data]
         return self.historical_data
 
@@ -47,7 +47,7 @@ class AQIForcaster:
         series = pd.Series(self.historical_data, dtype='float64').dropna()
         if series.empty:
             return series
-        return series.clip(lower=1, upper=5)
+        return series.clip(lower=0, upper=500)
 
     def forecast(self, forecast_days=7):
         series = self._clean_history()
@@ -74,7 +74,7 @@ class AQIForcaster:
                 last_value = float(series.iloc[-1])
                 predictions = [last_value] * forecast_days
 
-        cleaned_predictions = np.clip(np.array(predictions, dtype=float), 1, 5).round(2)
+        cleaned_predictions = np.clip(np.array(predictions, dtype=float), 0, 500).round(2)
         self.predictions['holt_winters'] = cleaned_predictions.tolist()
         return self.predictions['holt_winters']
 

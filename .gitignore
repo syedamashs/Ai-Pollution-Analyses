@@ -1,8 +1,9 @@
-# Python bytecode and caches
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 
 # Virtual environments
 .venv/
@@ -14,6 +15,9 @@ ENV/
 .env
 .env.*
 *.local
+secrets/
+*.key
+*.pem
 
 # Tooling caches
 .pytest_cache/
@@ -21,6 +25,8 @@ ENV/
 .ruff_cache/
 .ipynb_checkpoints/
 .webassets-cache/
+.cache/
+*.cache
 
 # Build artifacts
 dist/
@@ -28,16 +34,32 @@ build/
 *.egg-info/
 *.egg
 wheels/
+Output/
+htmlcov/
 
-# Node/Frontend
+# Node / frontend
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .eslintcache
+.parcelrc
 
-# OS/editor files
+# Generated app assets
+static/images/*.png
+!static/images/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Coverage / testing
+coverage/
+.nyc_output/
+.coverage
+
+# IDE / editor
 .DS_Store
 Thumbs.db
 .vscode/
@@ -48,22 +70,5 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# IDE
-.vscode
-.idea
-
-# Logs
-*.log
-logs/
-
-# Testing
-coverage/
-.nyc_output/
-
-# Dev server ports
+# App-specific / misc
 .next/
-
-# API Keys and Secrets
-secrets/
-*.key
-*.pem

@@ -88,3 +88,68 @@ export function EmptyState({ title, description, action }) {
     </div>
   )
 }
+
+export function AQICard({ aqi, category, pm25, pm10, no2, so2, co, o3 }) {
+  const getCategoryStyle = (cat) => {
+    const categoryStyles = {
+      'Good': 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 text-green-900',
+      'Satisfactory': 'bg-gradient-to-br from-lime-50 to-green-50 border-lime-200 text-lime-900',
+      'Moderately Polluted': 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200 text-yellow-900',
+      'Poor': 'bg-gradient-to-br from-orange-50 to-rose-50 border-orange-200 text-orange-900',
+      'Very Poor': 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200 text-red-900',
+      'Severe': 'bg-gradient-to-br from-purple-50 to-red-50 border-purple-200 text-purple-900',
+    }
+    return categoryStyles[cat] || categoryStyles['Satisfactory']
+  }
+
+  const getCategoryBgGradient = (cat) => {
+    const gradients = {
+      'Good': 'from-green-500 to-emerald-500',
+      'Satisfactory': 'from-lime-500 to-green-500',
+      'Moderately Polluted': 'from-yellow-500 to-amber-500',
+      'Poor': 'from-orange-500 to-rose-500',
+      'Very Poor': 'from-red-500 to-rose-600',
+      'Severe': 'from-purple-600 to-red-600',
+    }
+    return gradients[cat] || gradients['Satisfactory']
+  }
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 border-2 ${getCategoryStyle(category)}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.15em] opacity-75">Air Quality Index</p>
+          <p className="mt-2 text-5xl font-extrabold">{aqi}</p>
+          <p className="mt-2 inline-flex rounded-full px-3 py-1 text-sm font-bold">{category}</p>
+        </div>
+        <div className={`bg-gradient-to-br ${getCategoryBgGradient(category)} rounded-2xl p-4 text-white shadow-lg`}>
+          <p className="text-3xl">
+            {category === 'Good' ? '😊' 
+            : category === 'Satisfactory' ? '😐'
+            : category === 'Moderately Polluted' ? '😐'
+            : category === 'Poor' ? '😞'
+            : category === 'Very Poor' ? '😤'
+            : '😷'}
+          </p>
+        </div>
+      </div>
+      
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          { label: 'PM2.5', value: pm25, unit: 'µg/m³' },
+          { label: 'PM10', value: pm10, unit: 'µg/m³' },
+          { label: 'NO₂', value: no2, unit: 'ppb' },
+          { label: 'SO₂', value: so2, unit: 'ppb' },
+          { label: 'CO', value: co, unit: 'ppm' },
+          { label: 'O₃', value: o3, unit: 'ppb' },
+        ].map((pollutant) => (
+          <div key={pollutant.label} className="rounded-xl bg-white/50 p-3">
+            <p className="text-xs font-bold uppercase opacity-60">{pollutant.label}</p>
+            <p className="mt-1 text-lg font-extrabold">{pollutant.value}</p>
+            <p className="text-xs opacity-50">{pollutant.unit}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

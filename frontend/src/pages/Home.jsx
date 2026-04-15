@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../services/api'
-import { EmptyState, MetricCard, PageHero, SectionHeading, Surface } from '../components/UiKit'
+import { AQICard, EmptyState, MetricCard, PageHero, SectionHeading, Surface } from '../components/UiKit'
 
 export default function Home({ areas }) {
   const [stats, setStats] = useState({
@@ -20,12 +20,12 @@ export default function Home({ areas }) {
   const fetchHomeData = async () => {
     try {
       setLoading(true)
-      const aqiRes = await apiService.getAQI('madurai')
+      const aqiRes = await apiService.getAQI('periyar')
       if (aqiRes.data) {
         setAqi(aqiRes.data)
         setStats({
           totalCities: 5,
-          avgAqi: aqiRes.data.aqi || 2,
+          avgAqi: aqiRes.data.aqi || 100,
           totalPlantationArea: 1250000,
           totalTrees: 125000,
         })
@@ -35,7 +35,7 @@ export default function Home({ areas }) {
       setAqi(null)
       setStats({
         totalCities: 5,
-        avgAqi: 2,
+        avgAqi: 100,
         totalPlantationArea: 1250000,
         totalTrees: 125000,
       })
@@ -63,13 +63,13 @@ export default function Home({ areas }) {
   return (
     <div className="space-y-8">
       <PageHero
-        eyebrow="Tamil Nadu environmental dashboard"
-        title="A cleaner city plan, built from live air data and satellite intelligence."
-        description="Monitor AQI, surface hidden plantation space, and get tree guidance that matches the pollution profile of each city."
+        eyebrow="GreenMadurai - Ecological Dashboard"
+        title="A cleaner Madurai plan, built from live air data and satellite intelligence."
+        description="Monitor AQI across Madurai areas, surface hidden plantation space, and get tree guidance that matches the pollution profile of each locality."
         accent="emerald"
         stats={[
-          { label: 'Cities tracked', value: stats.totalCities, meta: 'Madurai, Chennai, Coimbatore, Dindigul, Trichy' },
-          { label: 'Current AQI', value: aqi ? getAqiLabel(aqi.aqi) : 'Loading' },
+          { label: 'Areas tracked', value: stats.totalCities, meta: 'Periyar, Arapalayam, Maatuthavani, Thirumangalam, Thiruparankundram' },
+          { label: 'Current AQI', value: aqi ? aqi.category : 'Loading' },
           { label: 'Plantation area', value: `${(stats.totalPlantationArea / 1000000).toFixed(1)}M m²` },
           { label: 'Trees recommended', value: `${(stats.totalTrees / 1000).toFixed(0)}K` },
         ]}
@@ -84,14 +84,14 @@ export default function Home({ areas }) {
           <QuickActionCard
             icon="🔍"
             title="Check AQI & Trees"
-            description="Monitor air quality and get personalized tree recommendations."
+            description="Monitor air quality across Madurai areas and get personalized tree recommendations."
             link="/aqi-trees"
             tone="emerald"
           />
           <QuickActionCard
             icon="🛰️"
             title="Area Analysis"
-            description="Inspect plantation opportunities from satellite imagery."
+            description="Inspect plantation opportunities in each area from satellite imagery."
             link="/area-analysis"
             tone="violet"
           />
