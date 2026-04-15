@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GreenMadurai - Pollution Analysis{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <div class="container">
         <!-- Sidebar -->
@@ -19,27 +21,33 @@
             </div>
 
             <nav>
-                <button class="nav-item {% if request.endpoint == 'index' %}active{% endif %}" onclick="navigateTo('/')">
+                <button class="nav-item {% if request.endpoint == 'index' %}active{% endif %}"
+                    onclick="navigateTo('/')">
                     <span class="nav-icon">🏠</span>
                     <span>Home</span>
                 </button>
-                <button class="nav-item {% if request.endpoint == 'area_analysis' %}active{% endif %}" onclick="navigateTo('/area-analysis')">
+                <button class="nav-item {% if request.endpoint == 'area_analysis' %}active{% endif %}"
+                    onclick="navigateTo('/area-analysis')">
                     <span class="nav-icon">📍</span>
                     <span>Area Analysis</span>
                 </button>
-                <button class="nav-item {% if request.endpoint == 'aqi_trees' %}active{% endif %}" onclick="navigateTo('/aqi-trees')">
+                <button class="nav-item {% if request.endpoint == 'aqi_trees' %}active{% endif %}"
+                    onclick="navigateTo('/aqi-trees')">
                     <span class="nav-icon">💨</span>
                     <span>AQI & Trees</span>
                 </button>
-                <button class="nav-item {% if request.endpoint == 'forecasting' %}active{% endif %}" onclick="navigateTo('/forecasting')">
+                <button class="nav-item {% if request.endpoint == 'forecasting' %}active{% endif %}"
+                    onclick="navigateTo('/forecasting')">
                     <span class="nav-icon">🔮</span>
                     <span>Forecasting</span>
                 </button>
-                <button class="nav-item {% if request.endpoint == 'model_evaluation' %}active{% endif %}" onclick="navigateTo('/model-evaluation')">
+                <button class="nav-item {% if request.endpoint == 'model_evaluation' %}active{% endif %}"
+                    onclick="navigateTo('/model-evaluation')">
                     <span class="nav-icon">🧪</span>
                     <span>Model Evaluation</span>
                 </button>
-                <button class="nav-item {% if request.endpoint == 'about' %}active{% endif %}" onclick="navigateTo('/about')">
+                <button class="nav-item {% if request.endpoint == 'about' %}active{% endif %}"
+                    onclick="navigateTo('/about')">
                     <span class="nav-icon">ℹ️</span>
                     <span>About Project</span>
                 </button>
@@ -109,4 +117,5 @@
     </script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

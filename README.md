@@ -1,17 +1,32 @@
-# AI Pollution Analysis System
+# GreenTamilNadu - AI Pollution Analysis & Tree Plantation System
 
-A complete **full-stack application** for analyzing air pollution using satellite imagery and recommending trees for urban plantation.
+A modern **full-stack React + Flask application** for analyzing air pollution, recommending trees for plantation, and forecasting AQI trends across Tamil Nadu cities.
 
-## 🎯 What This Does
+## 🎯 Core Features
 
-1. **Analyzes satellite images** to identify free land (using AI segmentation)
-2. **Displays AQI data** for 5 areas in Madurai with trends
-3. **Recommends trees** based on air quality level
-4. **Provides metrics** like free land percentage and estimated tree capacity
+1. **7-Day AQI Forecasting** - ML-powered predictions using Holt-Winters
+2. **Satellite Image Analysis** - AI segmentation to identify plantation areas
+3. **Smart Tree Recommendations** - ML-based species selection by AQI level
+4. **AQI Trend Visualization** - 7-day trend charts with real-time data
+5. **Model Evaluation** - Performance metrics and accuracy dashboards
+
+## ✨ Recent Architecture Updates
+
+**Frontend Modernization (React + Tailwind CSS)**
+- Migrated from Flask Jinja2 templates to React SPA
+- Modern responsive UI with Tailwind CSS
+- Client-side routing with React Router v6
+- Vite dev server with hot module reload (HMR)
+
+**Backend Optimization**
+- Single-model AQI forecasting (Holt-Winters) - fast & accurate
+- Extended history to 100 days for better training
+- Centralized API client service for consistent communication
+- CORS-enabled for cross-origin requests
 
 ---
 
-## 🧠 Newly Added ML Features
+## 🧠 ML Features
 
 1. **Explainable Tree Recommendations**
 - Top factors per tree: AQI fit, pollution tolerance, water need fit, canopy score

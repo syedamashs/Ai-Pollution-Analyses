@@ -7,27 +7,28 @@
     <!-- Hero Banner -->
     <div class="hero-banner">
         <h1>🔮 AQI Forecasting</h1>
-        <p>7-Day Air Quality Predictions using Multiple ML Models</p>
+        <p>7-Day Air Quality Predictions using a fast historical trend model</p>
         <div class="hero-badges">
-            <div class="badge">LSTM Neural Network</div>
-            <div class="badge">ARIMA Statistical</div>
-            <div class="badge">Prophet (Meta)</div>
+            <div class="badge">Holt-Winters Exponential Smoothing</div>
         </div>
     </div>
 
     <!-- Controls -->
-    <div class="content-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px;">
+    <div class="content-card"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px;">
         <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
             <div style="flex: 1; min-width: 250px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Select City</label>
-                <select id="city-selector" style="width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 14px;">
+                <select id="city-selector"
+                    style="width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 14px;">
                     {% for area in areas %}
                     <option value="{{ area.id }}">{{ area.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <button onclick="loadForecast()" style="padding: 10px 24px; background: white; color: #667eea; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 24px;">
+                <button onclick="loadForecast()"
+                    style="padding: 10px 24px; background: white; color: #667eea; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 24px;">
                     🔄 Refresh
                 </button>
             </div>
@@ -35,7 +36,8 @@
     </div>
 
     <!-- Statistics Grid -->
-    <div id="stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <div id="stats-container"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
         <div class="stat-card">
             <div class="stat-label">Current AQI</div>
             <div class="stat-value" id="current-aqi">--</div>
@@ -60,60 +62,21 @@
 
     <!-- Main Forecast Chart -->
     <div class="content-card">
-        <h3 class="card-title">📈 7-Day AQI Forecast Comparison</h3>
+        <h3 class="card-title">📈 7-Day AQI Forecast</h3>
         <div id="forecast-chart" style="width: 100%; height: 400px; position: relative;">
             <p style="color: #999; text-align: center; padding: 40px;">Loading forecast...</p>
-        </div>
-        
-        <!-- Legend -->
-        <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; justify-content: center;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 16px; height: 3px; background: #3b82f6;"></div>
-                <span>LSTM (Neural Network)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 16px; height: 3px; background: #ef4444;"></div>
-                <span>ARIMA (Statistical)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 16px; height: 3px; background: #10b981;"></div>
-                <span>Prophet (Meta)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 16px; height: 3px; background: #f59e0b; stroke-dasharray: 5,5;"></div>
-                <span>Ensemble (Average)</span>
-            </div>
         </div>
     </div>
 
     <!-- Model Details -->
     <div class="content-card">
         <h3 class="card-title">📊 Model Information</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
-            <div>
-                <h4 style="font-weight: 600; margin-bottom: 8px; color: #3b82f6;">🧠 LSTM Neural Network</h4>
-                <p style="font-size: 14px; color: #666; line-height: 1.6;">
-                    Long Short-Term Memory neural network captures complex temporal patterns and non-linear relationships in AQI data. Best for capturing sudden changes in air quality trends.
-                </p>
-            </div>
-            <div>
-                <h4 style="font-weight: 600; margin-bottom: 8px; color: #ef4444;">📉 ARIMA Statistical</h4>
-                <p style="font-size: 14px; color: #666; line-height: 1.6;">
-                    AutoRegressive Integrated Moving Average model (statistical approach) works well for stationary time series data. Effective for linear trends and seasonal patterns.
-                </p>
-            </div>
-            <div>
-                <h4 style="font-weight: 600; margin-bottom: 8px; color: #10b981;">🔮 Prophet (Meta)</h4>
-                <p style="font-size: 14px; color: #666; line-height: 1.6;">
-                    Facebook's Prophet handles trend changes and seasonality robustly. Excellent for weekly cyclical patterns in pollution data and automatic anomaly detection.
-                </p>
-            </div>
-            <div>
-                <h4 style="font-weight: 600; margin-bottom: 8px; color: #f59e0b;">🎯 Ensemble Average</h4>
-                <p style="font-size: 14px; color: #666; line-height: 1.6;">
-                    Combines predictions from all three models to reduce individual model bias and increase robustness. Often provides more reliable forecast than any single model.
-                </p>
-            </div>
+        <div style="max-width: 820px;">
+            <h4 style="font-weight: 600; margin-bottom: 8px; color: #0f766e;">🧠 Holt-Winters Exponential Smoothing</h4>
+            <p style="font-size: 14px; color: #666; line-height: 1.6;">
+                This model is fast, stable, and works well for AQI histories with repeating weekly movement. It does not
+                need heavy training and can use the last 100 days of AQI directly.
+            </p>
         </div>
     </div>
 
@@ -125,15 +88,13 @@
                 <thead>
                     <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
                         <th style="padding: 12px; text-align: left; font-weight: 600;">Date</th>
-                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #3b82f6;">LSTM</th>
-                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #ef4444;">ARIMA</th>
-                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #10b981;">Prophet</th>
-                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #f59e0b;">Ensemble</th>
+                        <th style="padding: 12px; text-align: center; font-weight: 600; color: #0f766e;">Forecast</th>
                     </tr>
                 </thead>
                 <tbody id="forecast-table-body">
                     <tr>
-                        <td colspan="5" style="padding: 20px; text-align: center; color: #999;">Loading forecast data...</td>
+                        <td colspan="2" style="padding: 20px; text-align: center; color: #999;">Loading forecast data...
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -142,23 +103,18 @@
 </div>
 
 <script>
-    // SVG Multi-line Chart for Forecasting
+    // SVG forecast chart
     function renderForecastSVG(containerId, forecast) {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
-        
+
         if (!forecast || !forecast.forecast_dates || forecast.forecast_dates.length === 0) {
             container.innerHTML = '<p style="color:#999; text-align: center; padding: 40px;">No forecast data available</p>';
             return;
         }
 
         const dates = forecast.forecast_dates;
-        const modelColors = {
-            'lstm': '#3b82f6',
-            'arima': '#ef4444',
-            'prophet': '#10b981',
-            'ensemble': '#f59e0b'
-        };
+        const model = forecast.model;
 
         const width = container.clientWidth || 900;
         const height = container.clientHeight || 400;
@@ -172,16 +128,10 @@
         svg.setAttribute('height', svgH);
         svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
 
-        // Collect all values to determine min/max scale
-        const allValues = [];
-        Object.keys(modelColors).forEach(model => {
-            if (forecast.models[model] && forecast.models[model].values) {
-                allValues.push(...forecast.models[model].values);
-            }
-        });
-        
-        const minV = Math.min(...allValues, 0);
-        const maxV = Math.max(...allValues, 500);
+        const allValues = model && model.values ? model.values : [];
+
+        const minV = Math.min(...allValues, 1);
+        const maxV = Math.max(...allValues, 5);
         const range = maxV - minV || 1;
 
         const innerW = svgW - padding.left - padding.right;
@@ -221,7 +171,7 @@
         for (let i = 0; i <= gridLevels; i++) {
             const v = minV + (range / gridLevels) * i;
             const yy = y(v);
-            
+
             const grid = document.createElementNS(svgNS, 'line');
             grid.setAttribute('x1', padding.left);
             grid.setAttribute('y1', yy);
@@ -242,40 +192,24 @@
             svg.appendChild(label);
         }
 
-        // Draw lines for each model
-        const models = ['lstm', 'arima', 'prophet', 'ensemble'];
-        
-        models.forEach(model => {
-            if (!forecast.models[model] || !forecast.models[model].values) return;
-            
-            const values = forecast.models[model].values;
-            const color = modelColors[model];
-            const isEnsemble = model === 'ensemble';
-            
-            // Create line
-            const points = values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-            const polyline = document.createElementNS(svgNS, 'polyline');
-            polyline.setAttribute('points', points);
-            polyline.setAttribute('fill', 'none');
-            polyline.setAttribute('stroke', color);
-            polyline.setAttribute('stroke-width', isEnsemble ? '2' : '3');
-            if (isEnsemble) polyline.setAttribute('stroke-dasharray', '8,4');
-            polyline.setAttribute('stroke-linecap', 'round');
-            polyline.setAttribute('stroke-linejoin', 'round');
-            svg.appendChild(polyline);
+        const linePoints = allValues.map((value, index) => `${x(index)},${y(value)}`).join(' ');
+        const polyline = document.createElementNS(svgNS, 'polyline');
+        polyline.setAttribute('points', linePoints);
+        polyline.setAttribute('fill', 'none');
+        polyline.setAttribute('stroke', model?.color || '#0f766e');
+        polyline.setAttribute('stroke-width', '3');
+        polyline.setAttribute('stroke-linecap', 'round');
+        polyline.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(polyline);
 
-            // Create data points
-            values.forEach((v, i) => {
-                const cx = x(i);
-                const cy = y(v);
-                const circle = document.createElementNS(svgNS, 'circle');
-                circle.setAttribute('cx', cx);
-                circle.setAttribute('cy', cy);
-                circle.setAttribute('r', isEnsemble ? '3' : '4');
-                circle.setAttribute('fill', color);
-                circle.setAttribute('opacity', '0.8');
-                svg.appendChild(circle);
-            });
+        allValues.forEach((value, index) => {
+            const circle = document.createElementNS(svgNS, 'circle');
+            circle.setAttribute('cx', x(index));
+            circle.setAttribute('cy', y(value));
+            circle.setAttribute('r', '4');
+            circle.setAttribute('fill', model?.color || '#0f766e');
+            circle.setAttribute('opacity', '0.85');
+            svg.appendChild(circle);
         });
 
         // X-axis labels (dates)
@@ -302,6 +236,8 @@
         yLabel.setAttribute('font-weight', 'bold');
         yLabel.textContent = 'AQI Level';
         svg.appendChild(yLabel);
+
+        container.appendChild(svg);
     }
 
     // Load forecast for selected city
@@ -309,9 +245,9 @@
         const cityId = document.getElementById('city-selector').value;
         const chart = document.getElementById('forecast-chart');
         const tableBody = document.getElementById('forecast-table-body');
-        
+
         chart.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">Loading forecast...</p>';
-        tableBody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #999;">Loading...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="2" style="padding: 20px; text-align: center; color: #999;">Loading...</td></tr>';
 
         try {
             const response = await fetch(`/api/web/area/${cityId}/forecast`);
@@ -330,15 +266,15 @@
             document.getElementById('forecast-avg').textContent = forecast.statistics.forecast_avg.toFixed(1);
             document.getElementById('forecast-min').textContent = forecast.statistics.forecast_min.toFixed(1);
             document.getElementById('forecast-max').textContent = forecast.statistics.forecast_max.toFixed(1);
-            document.getElementById('forecast-trend').textContent = 
-                forecast.statistics.trend === 'up' ? '📈' : '📉';
+            document.getElementById('forecast-trend').textContent =
+                forecast.statistics.trend === 'up' ? '📈' : (forecast.statistics.trend === 'down' ? '📉' : '➖');
 
             // Render chart
             renderForecastSVG('forecast-chart', forecast);
 
             // Update table
             updateForecastTable(forecast);
-            
+
             hideError();
 
         } catch (error) {
@@ -362,13 +298,13 @@
             dateCell.style.fontWeight = '500';
             row.appendChild(dateCell);
 
-            ['lstm', 'arima', 'prophet', 'ensemble'].forEach(model => {
-                const cell = document.createElement('td');
-                cell.style.padding = '12px';
-                cell.style.textAlign = 'center';
-                cell.textContent = forecast.models[model].values[idx].toFixed(1);
-                row.appendChild(cell);
-            });
+            const forecastCell = document.createElement('td');
+            forecastCell.style.padding = '12px';
+            forecastCell.style.textAlign = 'center';
+            forecastCell.style.fontWeight = '600';
+            forecastCell.style.color = '#0f766e';
+            forecastCell.textContent = forecast.model.values[idx].toFixed(1);
+            row.appendChild(forecastCell);
 
             tableBody.appendChild(row);
         });

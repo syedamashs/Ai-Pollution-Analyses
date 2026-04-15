@@ -339,7 +339,8 @@ footer {
   color: var(--color-gray-700);
 }
 
-.form-select, .form-input {
+.form-select,
+.form-input {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--color-gray-300);
@@ -348,7 +349,8 @@ footer {
   transition: all 0.2s;
 }
 
-.form-select:focus, .form-input:focus {
+.form-select:focus,
+.form-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
@@ -497,11 +499,11 @@ footer {
 }
 
 /* Utilities */
-.space-y-4 > * + * {
+.space-y-4>*+* {
   margin-top: 16px;
 }
 
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 24px;
 }
 

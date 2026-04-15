@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Production
+dist/
+build/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Install logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-error.log
+
+# IDE
+.vscode
+.idea
+*.sublime-project
+*.sublime-workspace
+
+# ESLint
+.eslintcache
+
+# Parcel
+.parcelrc
+
+# Testing
+coverage/
+.nyc_output/
+
+# OS
+Thumbs.db
+
+# Package manager lock files (optional - include these for reproducible builds)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

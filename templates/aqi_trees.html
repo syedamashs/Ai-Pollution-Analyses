@@ -6,7 +6,8 @@
 <div class="space-y-6">
     <div>
         <h2 style="font-size: 28px; font-weight: bold; margin-bottom: 8px;">AQI Index & Tree Recommendations</h2>
-        <p style="color: #666;">Real-time air quality monitoring and AI-powered tree suggestions for Tamil Nadu cities</p>
+        <p style="color: #666;">Real-time air quality monitoring and AI-powered tree suggestions for Tamil Nadu cities
+        </p>
     </div>
 
     <div id="error-message" class="alert alert-error hidden"></div>
@@ -21,12 +22,13 @@
                 <option value="{{ area.id }}" {% if loop.first %}selected{% endif %}>{{ area.name }}</option>
                 {% endfor %}
             </select>
-            
+
             <!-- Current AQI Index Display -->
             <div id="aqi-box" style="padding: 24px; border-radius: 12px; text-align: center; margin-top: 24px;">
                 <p style="font-size: 12px; font-weight: 500; margin-bottom: 8px;">Current AQI Index</p>
                 <p id="aqi-value" style="font-size: 56px; font-weight: bold; margin-bottom: 8px;">-</p>
-                <span id="aqi-status" style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; color: white;"></span>
+                <span id="aqi-status"
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; color: white;"></span>
                 <p id="aqi-time" style="font-size: 11px; color: #999; margin-top: 12px;">Last updated: -</p>
             </div>
         </div>
@@ -36,7 +38,8 @@
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
                 <h3 class="card-title">📈 7-Day AQI Index Trend</h3>
             </div>
-            <div id="trend-chart-container" style="display: flex; align-items: flex-end; gap: 10px; height: 250px; justify-content: space-around;">
+            <div id="trend-chart-container"
+                style="display: flex; align-items: flex-end; gap: 10px; height: 250px; justify-content: space-around;">
                 <!-- Bars will be added by JavaScript -->
             </div>
         </div>
@@ -56,12 +59,14 @@
     <div id="trees-section" class="hidden">
         <div class="content-card">
             <h3 class="card-title">🌳 Recommended Trees</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Each recommendation includes explainability factors and estimated impact score.</p>
+            <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Each recommendation includes explainability
+                factors and estimated impact score.</p>
             <div id="trees-grid" class="grid-2">
                 <!-- Trees will be added by JavaScript -->
             </div>
             <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
-                <button class="btn btn-primary" style="max-width: 320px;" onclick="submitFeedback()">Save Selected Trees Feedback</button>
+                <button class="btn btn-primary" style="max-width: 320px;" onclick="submitFeedback()">Save Selected Trees
+                    Feedback</button>
                 <span id="feedback-status" style="font-size: 12px; color: #666;"></span>
             </div>
         </div>
@@ -69,7 +74,8 @@
 
     <div class="content-card">
         <h3 class="card-title">🎯 Scenario Simulation</h3>
-        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Estimate species mix and tree count needed to improve AQI category.</p>
+        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">Estimate species mix and tree count needed to
+            improve AQI category.</p>
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;">
             <div>
                 <label class="form-label">Target AQI Category (1=Good, 5=Very Poor)</label>
@@ -92,27 +98,33 @@
         <div class="grid-3">
             <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 1</p>
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #dcfce7; color: #15803d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Good</span>
+                <span
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #dcfce7; color: #15803d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Good</span>
                 <p style="font-size: 12px; color: #666;">Air quality is satisfactory</p>
             </div>
             <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 2</p>
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fef3c7; color: #b45309; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Fair</span>
+                <span
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fef3c7; color: #b45309; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Fair</span>
                 <p style="font-size: 12px; color: #666;">Air quality acceptable</p>
             </div>
             <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 3</p>
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fed7aa; color: #92400e; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Moderate</span>
+                <span
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fed7aa; color: #92400e; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Moderate</span>
                 <p style="font-size: 12px; color: #666;">Unhealthy for groups</p>
             </div>
             <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 4</p>
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fecaca; color: #7f1d1d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Poor</span>
+                <span
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #fecaca; color: #7f1d1d; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Poor</span>
                 <p style="font-size: 12px; color: #666;">Everyone may feel effects</p>
             </div>
             <div style="text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
                 <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Level 5</p>
-                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #e9d5ff; color: #6b21a8; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Very Poor</span>
+                <span
+                    style="display: inline-block; padding: 6px 12px; border-radius: 20px; background-color: #e9d5ff; color: #6b21a8; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Very
+                    Poor</span>
                 <p style="font-size: 12px; color: #666;">Health alert conditions</p>
             </div>
         </div>
@@ -187,8 +199,8 @@
         svg.appendChild(axis);
 
         // y labels for categorical axis (1..5) with names
-        const labelMap = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'};
-        [1,2,3,4,5].forEach(v => {
+        const labelMap = { 1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor' };
+        [1, 2, 3, 4, 5].forEach(v => {
             const yy = y(v);
             const t = document.createElementNS(svgNS, 'text');
             t.setAttribute('x', padding.left - 12);
@@ -311,7 +323,7 @@
             // Update trees display
             const treesGrid = document.getElementById('trees-grid');
             treesGrid.innerHTML = '';
-            
+
             trees.forEach(tree => {
                 const explain = tree.explainability || {};
                 const topFactors = Array.isArray(explain.topFactors) ? explain.topFactors.slice(0, 3) : [];

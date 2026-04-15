@@ -1,0 +1,6 @@
+city_id,city_name,temperature,humidity,rainfall,urban_density
+madurai,Madurai,31.0,62.0,85.0,0.72
+chennai,Chennai,32.0,74.0,120.0,0.91
+coimbatore,Coimbatore,28.0,58.0,75.0,0.64
+dindigul,Dindigul,29.0,57.0,65.0,0.55
+trichy,Trichy,30.0,60.0,70.0,0.68

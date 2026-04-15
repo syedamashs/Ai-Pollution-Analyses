@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Flask Web UI for GreenTamilNadu - AI Pollution Analysis System"""
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from pathlib import Path
 import os
@@ -39,7 +39,12 @@ AQI_HISTORY_CACHE = {}
 AQI_HISTORY_CACHE_TIMEOUT = 1800  # Cache for 30 minutes
 
 # Flask app
-app = Flask(__name__)
+BASE_DIR = Path(__file__).resolve().parent.parent
+app = Flask(
+    __name__,
+    template_folder=str(BASE_DIR / 'templates'),
+    static_folder=str(BASE_DIR / 'static'),
+)
 CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
@@ -196,17 +201,15 @@ def get_aqi_for_city(city_id):
         url = f"https://api.openweathermap.org/data/2.5/air_pollution?lat={coords['lat']}&lon={coords['lon']}&appid={OPENWEATHER_API_KEY}"
         
         try:
-            response = requests.get(url, timeout=10)  # Increased timeout from 5 to 10 seconds
-            response.raise_for_status()  # Raise error for bad status codes
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
             data = response.json()
             
-            # OpenWeather current air_pollution returns 'main': {'aqi': 1..5} and 'components'
             if 'list' in data and len(data['list']) > 0:
                 sample = data['list'][0]
                 main = sample.get('main', {})
                 components = sample.get('components', {})
 
-                # Use OpenWeather's categorical AQI (1..5)
                 aqi_cat = main.get('aqi', 0)
 
                 aqi_result = {
@@ -220,7 +223,6 @@ def get_aqi_for_city(city_id):
                     'timestamp': datetime.now().isoformat()
                 }
                 
-                # Cache the result
                 AQI_CACHE[city_id] = {
                     'data': aqi_result,
                     'timestamp': datetime.now()
@@ -234,9 +236,8 @@ def get_aqi_for_city(city_id):
         except Exception as e:
             print(f"⚠️  API error for {city_id}: {e}")
         
-        # Return fallback data with moderate AQI
         fallback_data = {
-            'aqi': 2,  # Moderate (fair) AQI
+            'aqi': 2,
             'pm25': 35,
             'pm10': 50,
             'o3': 60,
@@ -246,7 +247,6 @@ def get_aqi_for_city(city_id):
             'timestamp': datetime.now().isoformat()
         }
         
-        # Cache fallback data too
         AQI_CACHE[city_id] = {
             'data': fallback_data,
             'timestamp': datetime.now()
@@ -256,6 +256,74 @@ def get_aqi_for_city(city_id):
     except Exception as e:
         print(f"Error in get_aqi_for_city: {e}")
         return {'aqi': 2, 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800}
+
+
+# Legacy HTML pages for the non-React UI
+@app.route('/')
+def index():
+    """Homepage with statistics."""
+    aggregated = aggregate_all_cities_data()
+    aqi_data = get_aqi_for_city('madurai')
+    aqi_value = aqi_data.get('aqi', 0)
+
+    aqi_categories = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
+    aqi_category = aqi_categories.get(aqi_value, 'Unknown')
+
+    stats_list = [
+        {'icon': 'MapPin', 'label': 'Total Cities', 'value': '5', 'color': 'green'},
+        {'icon': 'Wind', 'label': 'Avg AQI', 'value': str(aqi_value), 'color': 'blue'},
+        {
+            'icon': 'TrendingUp',
+            'label': 'Total Plantation Area',
+            'value': f"{aggregated['total_plantation_area']:,} m²",
+            'color': 'blue',
+        },
+        {
+            'icon': 'TreePine',
+            'label': 'Total Trees Recommended',
+            'value': f"{aggregated['total_trees']:,}",
+            'color': 'green',
+        },
+    ]
+
+    return render_template(
+        'index.html',
+        stats=stats_list,
+        areas=AREAS,
+        aqi_value=aqi_value,
+        aqi_category=aqi_category,
+        pm25=aqi_data.get('pm25', 0),
+    )
+
+
+@app.route('/area-analysis')
+def area_analysis():
+    """Area analysis page."""
+    return render_template('area_analysis.html', areas=AREAS)
+
+
+@app.route('/aqi-trees')
+def aqi_trees():
+    """AQI and trees page."""
+    return render_template('aqi_trees.html', areas=AREAS)
+
+
+@app.route('/about')
+def about():
+    """About page."""
+    return render_template('about.html', areas=AREAS)
+
+
+@app.route('/model-evaluation')
+def model_evaluation():
+    """Model evaluation dashboard."""
+    return render_template('model_evaluation.html', areas=AREAS)
+
+
+@app.route('/forecasting')
+def forecasting():
+    """Forecasting page."""
+    return render_template('forecasting.html', areas=AREAS)
 
 def _build_synthetic_aqi_history(city_id, days=100):
     """Build a smooth fallback AQI history when the API history is unavailable."""
@@ -362,14 +430,13 @@ def get_aqi_trend(city_id):
         url = f"https://api.openweathermap.org/data/2.5/air_pollution/history?lat={coords['lat']}&lon={coords['lon']}&start={start_timestamp}&end={end_timestamp}&appid={OPENWEATHER_API_KEY}"
         
         try:
-            response = requests.get(url, timeout=10)  # Increased timeout
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
             
             daily_aqi = {}
             
             if 'list' in data:
-                # Aggregate by date using OpenWeather 'main.aqi' categorical values (1..5)
                 for item in data['list']:
                     main = item.get('main', {})
                     aqi_cat = main.get('aqi', 0)
@@ -382,18 +449,14 @@ def get_aqi_trend(city_id):
                     if dt not in daily_aqi:
                         daily_aqi[dt] = aqi_val
                     else:
-                        # take worst (max) categorical value for the day
                         daily_aqi[dt] = max(daily_aqi[dt], aqi_val)
             
-            # IMPORTANT: Override today's AQI with current real-time value
             current_aqi = get_aqi_for_city(city_id)
             if current_aqi and 'aqi' in current_aqi:
                 daily_aqi[today_str] = current_aqi['aqi']
             
-            # Map numeric categories to labels for plotting (categorical axis)
             label_map = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
 
-            # Sort by date and return last 7 days with labels
             trend = [
                 {'date': date, 'value': value, 'label': label_map.get(value, 'Unknown')}
                 for date, value in sorted(daily_aqi.items())
@@ -411,18 +474,17 @@ def get_aqi_trend(city_id):
 
 def get_tree_category(aqi):
     """Determine tree recommendation category based on AQI"""
-    # Map OpenWeather categorical AQI (1..5) to tree recommendation keys
     try:
         a = int(aqi)
     except Exception:
         a = 0
 
     mapping = {
-        1: 'good',                # Good
-        2: 'moderate',            # Fair -> treat as moderate
-        3: 'unhealthy_sensitive', # Moderate -> Unhealthy for sensitive groups
-        4: 'unhealthy',           # Poor
-        5: 'very_unhealthy'       # Very Poor
+        1: 'good',
+        2: 'moderate',
+        3: 'unhealthy_sensitive',
+        4: 'unhealthy',
+        5: 'very_unhealthy'
     }
 
     return mapping.get(a, 'hazardous')
@@ -433,11 +495,12 @@ def process_city_images(city_name, city_folder, image_prefix):
     
     data_dir = Path(f'Data/{city_folder}')
     images = sorted(data_dir.glob(f'{image_prefix}_*.png'))
-    images_output_dir = Path('static/images')
+    images_output_dir = Path('../static/images')
     images_output_dir.mkdir(parents=True, exist_ok=True)
     
     all_stats = {
         'total_free_percentage': 0,
+        'total_green_percentage': 0,
         'total_trees': 0,
         'total_free_trees': 0,
         'total_plantation_area': 0,
@@ -450,27 +513,24 @@ def process_city_images(city_name, city_folder, image_prefix):
         if result:
             img_num = img_path.stem.split('_')[1]
             
-            # Save original image for UI display
             original_path = images_output_dir / f'{image_prefix}_{img_num}.png'
             try:
                 cv2.imwrite(str(original_path), result.get('original'))
             except Exception:
-                # fallback: copy raw file if result['original'] isn't writable
                 try:
                     from shutil import copyfile
                     copyfile(str(img_path), str(original_path))
                 except Exception:
                     pass
 
-            # Save segmented image (K-means colored 4-cluster result)
             segmented_path = images_output_dir / f'{image_prefix}_{img_num}_segmented.png'
             cv2.imwrite(str(segmented_path), result['segmented'])
 
-            # Save free land mask
             mask_path = images_output_dir / f'{image_prefix}_{img_num}_free_mask.png'
             cv2.imwrite(str(mask_path), result['mask'])
             
             all_stats['total_free_percentage'] += result['free_percentage']
+            all_stats['total_green_percentage'] += result['green_percentage']
             all_stats['total_trees'] += result['estimated_trees']
             all_stats['total_free_trees'] += result['trees_in_free']
             all_stats['total_plantation_area'] += result['plantation_area']
@@ -485,9 +545,9 @@ def process_city_images(city_name, city_folder, image_prefix):
                 'plantationArea': result['plantation_area']
             })
     
-    # Calculate averages
     if all_stats['image_count'] > 0:
         all_stats['avg_free_percentage'] = round(all_stats['total_free_percentage'] / all_stats['image_count'], 2)
+        all_stats['avg_green_percentage'] = round(all_stats['total_green_percentage'] / all_stats['image_count'], 2)
         all_stats['avg_trees'] = int(all_stats['total_trees'] / all_stats['image_count'])
         all_stats['avg_free_trees'] = int(all_stats['total_free_trees'] / all_stats['image_count'])
         all_stats['avg_plantation_area'] = int(all_stats['total_plantation_area'] / all_stats['image_count'])
@@ -497,9 +557,6 @@ def process_city_images(city_name, city_folder, image_prefix):
     print(f"✅ Processed {all_stats['image_count']} {city_name} images")
     print(f"   Avg free land: {all_stats['avg_free_percentage']}%")
     print(f"   Avg trees: {all_stats['avg_trees']}")
-    print(f"   Saved segmented and mask images to static/images/")
-    
-    return all_stats
 
 def aggregate_all_cities_data():
     """Aggregate data from all processed cities"""
@@ -525,102 +582,29 @@ def aggregate_all_cities_data():
         'cities_processed': cities_processed
     }
 
-def process_madurai_images():
-    """Process all Madurai images on startup"""
-    return process_city_images('madurai', 'Madurai', 'madurai')
-
-def process_dindigul_images():
-    """Process all Dindigul images on startup"""
-    return process_city_images('dindigul', 'Dindigul', 'dindigul')
-
 def startup_initialization():
     """Initialize data on app startup"""
     print("🚀 Starting GreenTamilNadu system initialization...")
     
-    # Process all city images
-    process_madurai_images()
-    process_dindigul_images()
+    process_city_images('madurai', 'Madurai', 'madurai')
+    process_city_images('dindigul', 'Dindigul', 'dindigul')
     process_city_images('chennai', 'Chennai', 'chennai')
     process_city_images('coimbatore', 'Coimbatore', 'coimbatore')
     process_city_images('trichy', 'Trichy', 'trichy')
     
     print("✅ System initialized successfully")
 
-# Initialize on app creation
 startup_initialization()
 
-# Routes
-@app.route('/')
-def index():
-    """Homepage with statistics"""
-    # Get aggregated data from all cities
-    aggregated = aggregate_all_cities_data()
-    
-    # Get AQI for Madurai
-    aqi_data = get_aqi_for_city('madurai')
-    aqi_value = aqi_data.get('aqi', 0)
-    
-    # Convert AQI number to category
-    aqi_categories = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
-    aqi_category = aqi_categories.get(aqi_value, 'Unknown')
-    
-    # Create stats list for template - Total cities, Avg AQI, Plantation area, Trees recommended
-    stats_list = [
-        {
-            'icon': 'MapPin',
-            'label': 'Total Cities',
-            'value': '5',
-            'color': 'green'
-        },
-        {
-            'icon': 'Wind',
-            'label': 'Avg AQI',
-            'value': str(aqi_value),
-            'color': 'blue'
-        },
-        {
-            'icon': 'TrendingUp',
-            'label': 'Total Plantation Area',
-            'value': f"{aggregated['total_plantation_area']:,} m²",
-            'color': 'blue'
-        },
-        {
-            'icon': 'TreePine',
-            'label': 'Total Trees Recommended',
-            'value': f"{aggregated['total_trees']:,}",
-            'color': 'green'
-        }
-    ]
-    
-    return render_template('index.html', 
-        stats=stats_list,
-        areas=AREAS,
-        aqi_value=aqi_value,
-        aqi_category=aqi_category,
-        pm25=aqi_data.get('pm25', 0)
-    )
-
-@app.route('/area-analysis')
-def area_analysis():
-    """Area analysis page"""
-    return render_template('area_analysis.html', areas=AREAS)
-
-@app.route('/aqi-trees')
-def aqi_trees():
-    """AQI and trees page"""
-    return render_template('aqi_trees.html', areas=AREAS)
-
-@app.route('/about')
-def about():
-    """About page"""
-    return render_template('about.html', areas=AREAS)
-
-@app.route('/model-evaluation')
-def model_evaluation():
-    """Model evaluation dashboard"""
-    return render_template('model_evaluation.html', areas=AREAS)
-
 # API Endpoints
+@app.route('/api/web/area/<area_id>', methods=['GET'])
+def web_get_area(area_id):
+    """Get area info"""
+    if area_id not in CITY_COORDS:
+        return jsonify({'error': 'Area not found'}), 404
+    
+    return jsonify(CITY_COORDS[area_id])
+
 @app.route('/api/web/area/<area_id>/analysis')
 def web_get_analysis(area_id):
     """Get area analysis data"""
@@ -632,7 +616,6 @@ def web_get_analysis(area_id):
     
     data = ANALYSIS_DATA[area_id]
     
-    # Map area_id to image prefix
     image_prefix_map = {
         'madurai': 'madurai',
         'dindigul': 'dindigul',
@@ -646,12 +629,11 @@ def web_get_analysis(area_id):
         'areaId': area_id,
         'areaName': CITY_COORDS[area_id]['name'],
         'freeLandPercentage': data.get('avg_free_percentage', 0),
+        'greenPercentage': data.get('avg_green_percentage', 0),
         'plantationArea': data.get('avg_plantation_area', 0),
         'estimatedTrees': data.get('avg_trees', 0),
         'treesInFreeAreas': data.get('avg_free_trees', 0),
-        'originalImage': f'/static/images/{image_prefix}_1.png',
-        'segmentedImage': f'/static/images/{image_prefix}_1_segmented.png',
-        'maskImage': f'/static/images/{image_prefix}_1_free_mask.png',
+        'image_count': data.get('image_count', 0),
         'images': data.get('images', [])
     })
 
@@ -660,11 +642,7 @@ def web_get_aqi(area_id):
     """Get current AQI for area"""
     aqi_data = get_aqi_for_city(area_id)
     
-    if 'error' in aqi_data and len(aqi_data) == 2:
-        return jsonify(aqi_data), 404
-    
     aqi_value = aqi_data.get('aqi', 0)
-    # Map OpenWeather categorical AQI (1..5) to labels used in UI
     def us_aqi_level(aqi):
         try:
             v = int(aqi)
@@ -700,21 +678,26 @@ def web_get_aqi_trend(area_id):
 def web_get_trees(area_id):
     """Get tree recommendations"""
     if area_id not in CITY_COORDS:
-        return jsonify({'error': 'City not found'}), 404
+        return jsonify({'error': 'City not found', 'recommendations': []}), 404
     
     aqi_data = get_aqi_for_city(area_id)
     aqi_value = aqi_data.get('aqi', 0)
+    
     try:
         if TREE_MODEL is None:
             raise RuntimeError('Tree model unavailable')
-        # Model-based recommendations using current AQI and city profile
         model_results = TREE_MODEL.recommend(int(aqi_value), city_id=area_id, top_k=6)
-        return jsonify(model_results)
+        if isinstance(model_results, list):
+            return jsonify({'recommendations': model_results})
+        elif isinstance(model_results, dict) and 'recommendations' in model_results:
+            return jsonify(model_results)
+        else:
+            return jsonify({'recommendations': model_results if isinstance(model_results, list) else []})
     except Exception as e:
-        print(f"⚠️  Tree model fallback triggered: {e}")
+        print(f"⚠️  Tree model error: {e}")
         category = get_tree_category(aqi_value)
-        return jsonify(TREE_RECOMMENDATIONS.get(category, []))
-
+        recommendations = TREE_RECOMMENDATIONS.get(category, [])
+        return jsonify({'recommendations': recommendations, 'source': 'fallback'}), 200
 
 @app.route('/api/model/evaluation')
 def web_model_evaluation():
@@ -728,7 +711,6 @@ def web_model_evaluation():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/web/area/<area_id>/scenario', methods=['POST'])
 def web_scenario_simulation(area_id):
@@ -750,7 +732,6 @@ def web_scenario_simulation(area_id):
         target_aqi=int(target_aqi),
     )
     return jsonify(result)
-
 
 @app.route('/api/web/area/<area_id>/impact-estimate', methods=['POST'])
 def web_impact_estimation(area_id):
@@ -779,7 +760,6 @@ def web_impact_estimation(area_id):
     )
     return jsonify(result)
 
-
 @app.route('/api/web/feedback', methods=['POST'])
 def web_store_feedback():
     """Store recommendation feedback for future model retraining."""
@@ -805,13 +785,6 @@ def web_store_feedback():
         note=str(note),
     )
     return jsonify(result)
-
-# ============================= FORECASTING ROUTES =============================
-
-@app.route('/forecasting')
-def forecasting():
-    """Forecasting page"""
-    return render_template('forecasting.html', areas=AREAS)
 
 @app.route('/api/web/area/<area_id>/forecast', methods=['GET'])
 def web_get_forecast(area_id):

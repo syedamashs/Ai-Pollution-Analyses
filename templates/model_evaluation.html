@@ -60,38 +60,38 @@
 </div>
 
 <script>
-async function loadModelEvaluation() {
-    const errorBox = document.getElementById('eval-error');
-    errorBox.classList.add('hidden');
+    async function loadModelEvaluation() {
+        const errorBox = document.getElementById('eval-error');
+        errorBox.classList.add('hidden');
 
-    try {
-        const response = await fetch('/api/model/evaluation');
-        if (!response.ok) {
-            throw new Error('Unable to fetch model evaluation');
+        try {
+            const response = await fetch('/api/model/evaluation');
+            if (!response.ok) {
+                throw new Error('Unable to fetch model evaluation');
+            }
+
+            const data = await response.json();
+            const suitability = data.suitabilityModel || {};
+            const impact = data.impactModel || {};
+
+            document.getElementById('metric-accuracy').textContent = suitability.accuracy ?? '-';
+            document.getElementById('metric-precision').textContent = suitability.precision ?? '-';
+            document.getElementById('metric-recall').textContent = suitability.recall ?? '-';
+
+            const matrix = (suitability.confusionMatrix || {}).matrix || [[0, 0], [0, 0]];
+            document.getElementById('cm-00').textContent = matrix[0][0];
+            document.getElementById('cm-01').textContent = matrix[0][1];
+            document.getElementById('cm-10').textContent = matrix[1][0];
+            document.getElementById('cm-11').textContent = matrix[1][1];
+
+            document.getElementById('model-details').textContent =
+                `Suitability: ${suitability.modelType || '-'} | Samples: ${suitability.sampleCount || '-'} | Features: ${suitability.featureCount || '-'} | Impact R2: ${impact.r2 ?? '-'} | MAE: ${impact.mae ?? '-'} | RMSE: ${impact.rmse ?? '-'}`;
+        } catch (error) {
+            errorBox.textContent = 'Failed to load model metrics.';
+            errorBox.classList.remove('hidden');
         }
-
-        const data = await response.json();
-        const suitability = data.suitabilityModel || {};
-        const impact = data.impactModel || {};
-
-        document.getElementById('metric-accuracy').textContent = suitability.accuracy ?? '-';
-        document.getElementById('metric-precision').textContent = suitability.precision ?? '-';
-        document.getElementById('metric-recall').textContent = suitability.recall ?? '-';
-
-        const matrix = (suitability.confusionMatrix || {}).matrix || [[0, 0], [0, 0]];
-        document.getElementById('cm-00').textContent = matrix[0][0];
-        document.getElementById('cm-01').textContent = matrix[0][1];
-        document.getElementById('cm-10').textContent = matrix[1][0];
-        document.getElementById('cm-11').textContent = matrix[1][1];
-
-        document.getElementById('model-details').textContent =
-            `Suitability: ${suitability.modelType || '-'} | Samples: ${suitability.sampleCount || '-'} | Features: ${suitability.featureCount || '-'} | Impact R2: ${impact.r2 ?? '-'} | MAE: ${impact.mae ?? '-'} | RMSE: ${impact.rmse ?? '-'}`;
-    } catch (error) {
-        errorBox.textContent = 'Failed to load model metrics.';
-        errorBox.classList.remove('hidden');
     }
-}
 
-loadModelEvaluation();
+    loadModelEvaluation();
 </script>
 {% endblock %}
