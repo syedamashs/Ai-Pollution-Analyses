@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Flask Web UI for GreenMadurai - AI Pollution Analysis System"""
-from flask import Flask, jsonify, render_template, request
+"""Flask API for GreenMadurai - AI Pollution Analysis System."""
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pathlib import Path
 import os
@@ -9,12 +9,21 @@ import numpy as np
 import cv2
 from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
-import threading
-from scripts.tree_recommendation_model import get_tree_recommendation_model
-from scripts.forecasting import get_aqi_forecaster
+
+try:
+    # Prefer package imports when loaded as `backend.app`.
+    from backend.scripts.tree_recommendation_model import get_tree_recommendation_model
+    from backend.scripts.forecasting import get_aqi_forecaster
+except ModuleNotFoundError:
+    # Fallback for script mode: `python backend/app.py` or `cd backend && python app.py`.
+    from scripts.tree_recommendation_model import get_tree_recommendation_model
+    from scripts.forecasting import get_aqi_forecaster
 
 # Configuration and defaults
 OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY', 'b94f9c7458972cd296068cfa48e2db31')
+OPENWEATHER_VERIFY_SSL = os.environ.get('OPENWEATHER_VERIFY_SSL', '0').lower() in ('1', 'true', 'yes')
+OPENWEATHER_TIMEOUT = (3, 8)
+OPENWEATHER_HISTORY_TIMEOUT = (4, 12)
 
 # Madurai areas with coordinates and metadata
 MADURAI_AREAS = {
@@ -28,6 +37,61 @@ MADURAI_AREAS = {
 # Keep backward compatibility
 CITY_COORDS = MADURAI_AREAS
 AREAS = [{'id': k, 'name': v['name']} for k, v in MADURAI_AREAS.items()]
+
+# Area-level context to differentiate nearby microzones.
+# Values are normalized (0..1) and represent relative local intensity.
+AREA_MICROZONE_PARAMS = {
+    'maatuthavani': {
+        'traffic': 0.84,
+        'industrial': 0.39,
+        'road_dust': 0.67,
+        'green': 0.37,
+        'bus_hub': 0.92,
+        'commercial': 0.73,
+        'street_canyon': 0.64,
+        'elevation_rel': 0.48,
+    },
+    'arapalayam': {
+        'traffic': 0.83,
+        'industrial': 0.36,
+        'road_dust': 0.66,
+        'green': 0.38,
+        'bus_hub': 0.78,
+        'commercial': 0.70,
+        'street_canyon': 0.58,
+        'elevation_rel': 0.46,
+    },
+    'periyar': {
+        'traffic': 0.91,
+        'industrial': 0.40,
+        'road_dust': 0.72,
+        'green': 0.30,
+        'bus_hub': 0.86,
+        'commercial': 0.88,
+        'street_canyon': 0.69,
+        'elevation_rel': 0.44,
+    },
+    'thiruparankundram': {
+        'traffic': 0.58,
+        'industrial': 0.33,
+        'road_dust': 0.48,
+        'green': 0.52,
+        'bus_hub': 0.38,
+        'commercial': 0.42,
+        'street_canyon': 0.36,
+        'elevation_rel': 0.57,
+    },
+    'thirumangalam': {
+        'traffic': 0.50,
+        'industrial': 0.28,
+        'road_dust': 0.42,
+        'green': 0.57,
+        'bus_hub': 0.35,
+        'commercial': 0.40,
+        'street_canyon': 0.31,
+        'elevation_rel': 0.55,
+    },
+}
 
 # In-memory holder for analysis results
 ANALYSIS_DATA = {}
@@ -96,7 +160,6 @@ AQI_HISTORY_CACHE_TIMEOUT = 1800  # Cache for 30 minutes
 BASE_DIR = Path(__file__).resolve().parent.parent
 app = Flask(
     __name__,
-    template_folder=str(BASE_DIR / 'templates'),
     static_folder=str(BASE_DIR / 'static'),
 )
 CORS(app)
@@ -248,8 +311,11 @@ def calculate_aqi(pm25, pm10, no2, so2, co, o3):
         """Calculate AQI for a single pollutant"""
         if pollutant_name not in AQI_BREAKPOINTS:
             return 0
+        value = float(value)
         
         breakpoints = AQI_BREAKPOINTS[pollutant_name]
+
+        # First, try direct band match.
         for bp in breakpoints:
             blo, bhi = bp['breakpoint']
             ilo, ihi = bp['aqi']
@@ -257,7 +323,19 @@ def calculate_aqi(pm25, pm10, no2, so2, co, o3):
             if blo <= value <= bhi:
                 # CPCB formula: AQI = (IHI - ILO) / (BHI - BLO) * (C - BLO) + ILO
                 aqi_value = ((ihi - ilo) / (bhi - blo)) * (value - blo) + ilo
-                return round(aqi_value, 2)
+                return float(aqi_value)
+
+        # Handle decimal values that may fall into integer gaps (e.g., 50.48 between 50 and 51)
+        # by selecting the nearest valid breakpoint band.
+        nearest_bp = min(
+            breakpoints,
+            key=lambda bp: min(abs(value - bp['breakpoint'][0]), abs(value - bp['breakpoint'][1]))
+        )
+        blo, bhi = nearest_bp['breakpoint']
+        ilo, ihi = nearest_bp['aqi']
+        clamped_value = _clamp(value, blo, bhi)
+        aqi_value = ((ihi - ilo) / (bhi - blo)) * (clamped_value - blo) + ilo
+        return float(aqi_value)
         
         # If value exceeds all breakpoints, return max AQI
         return 500
@@ -296,9 +374,153 @@ def calculate_aqi(pm25, pm10, no2, so2, co, o3):
             return 'Severe'
     
     return {
-        'aqi': round(final_aqi, 2),
+        'aqi': float(final_aqi),
         'category': get_aqi_category(final_aqi),
         'breakdown': aqi_values
+    }
+
+
+def _clamp(value, min_value, max_value):
+    return max(min_value, min(max_value, value))
+
+
+def _deterministic_area_offset(city_id):
+    """Small stable offset to avoid identical ties for close-by coordinates."""
+    seed = sum(ord(char) for char in str(city_id))
+    return ((seed % 9) - 4) / 400.0  # -0.01 .. +0.01
+
+
+def _geo_signature(city_id):
+    """Coordinate-derived stable signature to prevent center-core ties."""
+    coords = CITY_COORDS.get(city_id, {})
+    lat = float(coords.get('lat', 0.0))
+    lon = float(coords.get('lon', 0.0))
+    wave = (np.sin(lat * 37.0) + np.cos(lon * 29.0)) * 0.5
+    return _clamp(float(wave), -1.0, 1.0)
+
+
+def _apply_area_micro_adjustment(city_id, pm25, pm10, no2, so2, co, o3):
+    """Blend live API pollutants with area-level context for microzone differentiation."""
+    params = AREA_MICROZONE_PARAMS.get(
+        city_id,
+        {
+            'traffic': 0.5,
+            'industrial': 0.5,
+            'road_dust': 0.5,
+            'green': 0.5,
+            'bus_hub': 0.5,
+            'commercial': 0.5,
+            'street_canyon': 0.5,
+            'elevation_rel': 0.5,
+        },
+    )
+
+    traffic_delta = params['traffic'] - 0.5
+    industrial_delta = params['industrial'] - 0.5
+    road_dust_delta = params['road_dust'] - 0.5
+    green_delta = params['green'] - 0.5
+    bus_hub_delta = params['bus_hub'] - 0.5
+    commercial_delta = params['commercial'] - 0.5
+    street_canyon_delta = params['street_canyon'] - 0.5
+    elevation_delta = params['elevation_rel'] - 0.5
+
+    # Use segmented imagery statistics when available to strengthen area-specific adjustments.
+    area_analysis = ANALYSIS_DATA.get(city_id, {})
+    observed_green_percentage = float(area_analysis.get('avg_green_percentage', 30) or 30)
+    observed_free_percentage = float(area_analysis.get('avg_free_percentage', 20) or 20)
+
+    green_cover_delta = _clamp((observed_green_percentage - 30.0) / 100.0, -0.25, 0.25)
+    free_land_delta = _clamp((observed_free_percentage - 20.0) / 100.0, -0.20, 0.20)
+    spatial_offset = _deterministic_area_offset(city_id)
+    geo_wave = _geo_signature(city_id)
+
+    pm25_mult = _clamp(
+        1.0
+        + (0.22 * traffic_delta)
+        + (0.13 * industrial_delta)
+        + (0.13 * road_dust_delta)
+        + (0.10 * bus_hub_delta)
+        + (0.07 * commercial_delta)
+        + (0.06 * street_canyon_delta)
+        - (0.16 * green_delta)
+        - (0.06 * elevation_delta)
+        - (0.12 * green_cover_delta)
+        - (0.08 * free_land_delta)
+        + spatial_offset
+        + (0.03 * geo_wave),
+        0.72,
+        1.35,
+    )
+    pm10_mult = _clamp(
+        1.0
+        + (0.18 * traffic_delta)
+        + (0.13 * road_dust_delta)
+        + (0.09 * industrial_delta)
+        + (0.07 * bus_hub_delta)
+        + (0.04 * commercial_delta)
+        - (0.10 * green_delta)
+        - (0.05 * elevation_delta)
+        - (0.06 * green_cover_delta)
+        + spatial_offset
+        + (0.02 * geo_wave),
+        0.75,
+        1.30,
+    )
+    no2_mult = _clamp(
+        1.0
+        + (0.21 * traffic_delta)
+        + (0.08 * industrial_delta)
+        + (0.09 * bus_hub_delta)
+        + (0.07 * street_canyon_delta)
+        - (0.08 * green_delta)
+        + spatial_offset
+        + (0.02 * geo_wave),
+        0.78,
+        1.28,
+    )
+    so2_mult = _clamp(
+        1.0
+        + (0.17 * industrial_delta)
+        + (0.06 * traffic_delta)
+        + (0.04 * commercial_delta)
+        - (0.05 * green_delta)
+        - (0.03 * elevation_delta)
+        + spatial_offset,
+        0.82,
+        1.22,
+    )
+    co_mult = _clamp(
+        1.0
+        + (0.16 * traffic_delta)
+        + (0.08 * industrial_delta)
+        + (0.08 * bus_hub_delta)
+        + (0.06 * street_canyon_delta)
+        - (0.06 * green_delta)
+        + spatial_offset
+        + (0.02 * geo_wave),
+        0.80,
+        1.26,
+    )
+    o3_mult = _clamp(
+        1.0
+        - (0.10 * traffic_delta)
+        - (0.04 * bus_hub_delta)
+        + (0.06 * green_delta)
+        + (0.03 * elevation_delta)
+        + (0.05 * free_land_delta)
+        - spatial_offset
+        - (0.02 * geo_wave),
+        0.86,
+        1.20,
+    )
+
+    return {
+        'pm25': max(1.0, float(pm25) * pm25_mult),
+        'pm10': max(1.0, float(pm10) * pm10_mult),
+        'no2': max(1.0, float(no2) * no2_mult),
+        'so2': max(1.0, float(so2) * so2_mult),
+        'co': max(50.0, float(co) * co_mult),
+        'o3': max(1.0, float(o3) * o3_mult),
     }
 
 def get_aqi_for_city(city_id):
@@ -317,7 +539,7 @@ def get_aqi_for_city(city_id):
         url = f"https://api.openweathermap.org/data/2.5/air_pollution?lat={coords['lat']}&lon={coords['lon']}&appid={OPENWEATHER_API_KEY}"
         
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=OPENWEATHER_TIMEOUT, verify=OPENWEATHER_VERIFY_SSL)
             response.raise_for_status()
             data = response.json()
             
@@ -333,18 +555,30 @@ def get_aqi_for_city(city_id):
                 co = components.get('co', 800)
                 o3 = components.get('o3', 60)
 
+                adjusted = _apply_area_micro_adjustment(city_id, pm25, pm10, no2, so2, co, o3)
+
                 # Calculate AQI using CPCB formula
-                aqi_calc = calculate_aqi(pm25, pm10, no2, so2, co, o3)
+                aqi_calc = calculate_aqi(
+                    adjusted['pm25'],
+                    adjusted['pm10'],
+                    adjusted['no2'],
+                    adjusted['so2'],
+                    adjusted['co'],
+                    adjusted['o3'],
+                )
                 
                 aqi_result = {
                     'aqi': aqi_calc['aqi'],
                     'category': aqi_calc['category'],
-                    'pm25': round(pm25, 2),
-                    'pm10': round(pm10, 2),
-                    'o3': round(o3, 2),
-                    'no2': round(no2, 2),
-                    'so2': round(so2, 2),
-                    'co': round(co, 2),
+                    'pm25': adjusted['pm25'],
+                    'pm10': adjusted['pm10'],
+                    'o3': adjusted['o3'],
+                    'no2': adjusted['no2'],
+                    'so2': adjusted['so2'],
+                    'co': adjusted['co'],
+                    'breakdown': aqi_calc.get('breakdown', {}),
+                    'adjustment_meta': AREA_MICROZONE_PARAMS.get(city_id, {}),
+                    'source': 'openweather+microzone',
                     'timestamp': datetime.now().isoformat()
                 }
                 
@@ -359,19 +593,33 @@ def get_aqi_for_city(city_id):
             print(f"⚠️  API timeout for {city_id} - using fallback data")
         except requests.exceptions.ConnectionError:
             print(f"⚠️  Connection error for {city_id} - using fallback data")
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️  API request error for {city_id}: {e}")
         except Exception as e:
             print(f"⚠️  API error for {city_id}: {e}")
         
         # Fallback data
+        adjusted_fallback = _apply_area_micro_adjustment(city_id, 35, 50, 40, 20, 800, 60)
+        fallback_calc = calculate_aqi(
+            adjusted_fallback['pm25'],
+            adjusted_fallback['pm10'],
+            adjusted_fallback['no2'],
+            adjusted_fallback['so2'],
+            adjusted_fallback['co'],
+            adjusted_fallback['o3'],
+        )
         fallback_data = {
-            'aqi': 100,
-            'category': 'Satisfactory',
-            'pm25': 35,
-            'pm10': 50,
-            'o3': 60,
-            'no2': 40,
-            'so2': 20,
-            'co': 800,
+            'aqi': fallback_calc['aqi'],
+            'category': fallback_calc['category'],
+            'pm25': adjusted_fallback['pm25'],
+            'pm10': adjusted_fallback['pm10'],
+            'o3': adjusted_fallback['o3'],
+            'no2': adjusted_fallback['no2'],
+            'so2': adjusted_fallback['so2'],
+            'co': adjusted_fallback['co'],
+            'breakdown': fallback_calc.get('breakdown', {}),
+            'adjustment_meta': AREA_MICROZONE_PARAMS.get(city_id, {}),
+            'source': 'fallback+microzone',
             'timestamp': datetime.now().isoformat()
         }
         
@@ -383,75 +631,30 @@ def get_aqi_for_city(city_id):
         return fallback_data
     except Exception as e:
         print(f"Error in get_aqi_for_city: {e}")
-        return {'aqi': 100, 'category': 'Satisfactory', 'pm25': 35, 'pm10': 50, 'o3': 60, 'no2': 40, 'so2': 20, 'co': 800, 'timestamp': datetime.now().isoformat()}
+        adjusted_fallback = _apply_area_micro_adjustment(city_id, 35, 50, 40, 20, 800, 60)
+        fallback_calc = calculate_aqi(
+            adjusted_fallback['pm25'],
+            adjusted_fallback['pm10'],
+            adjusted_fallback['no2'],
+            adjusted_fallback['so2'],
+            adjusted_fallback['co'],
+            adjusted_fallback['o3'],
+        )
+        return {
+            'aqi': fallback_calc['aqi'],
+            'category': fallback_calc['category'],
+            'pm25': adjusted_fallback['pm25'],
+            'pm10': adjusted_fallback['pm10'],
+            'o3': adjusted_fallback['o3'],
+            'no2': adjusted_fallback['no2'],
+            'so2': adjusted_fallback['so2'],
+            'co': adjusted_fallback['co'],
+            'breakdown': fallback_calc.get('breakdown', {}),
+            'adjustment_meta': AREA_MICROZONE_PARAMS.get(city_id, {}),
+            'source': 'exception-fallback+microzone',
+            'timestamp': datetime.now().isoformat(),
+        }
 
-
-# Legacy HTML pages for the non-React UI
-@app.route('/')
-def index():
-    """Homepage with statistics."""
-    aggregated = aggregate_all_cities_data()
-    aqi_data = get_aqi_for_city('madurai')
-    aqi_value = aqi_data.get('aqi', 0)
-
-    aqi_categories = {1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor'}
-    aqi_category = aqi_categories.get(aqi_value, 'Unknown')
-
-    stats_list = [
-        {'icon': 'MapPin', 'label': 'Total Cities', 'value': '5', 'color': 'green'},
-        {'icon': 'Wind', 'label': 'Avg AQI', 'value': str(aqi_value), 'color': 'blue'},
-        {
-            'icon': 'TrendingUp',
-            'label': 'Total Plantation Area',
-            'value': f"{aggregated['total_plantation_area']:,} m²",
-            'color': 'blue',
-        },
-        {
-            'icon': 'TreePine',
-            'label': 'Total Trees Recommended',
-            'value': f"{aggregated['total_trees']:,}",
-            'color': 'green',
-        },
-    ]
-
-    return render_template(
-        'index.html',
-        stats=stats_list,
-        areas=AREAS,
-        aqi_value=aqi_value,
-        aqi_category=aqi_category,
-        pm25=aqi_data.get('pm25', 0),
-    )
-
-
-@app.route('/area-analysis')
-def area_analysis():
-    """Area analysis page."""
-    return render_template('area_analysis.html', areas=AREAS)
-
-
-@app.route('/aqi-trees')
-def aqi_trees():
-    """AQI and trees page."""
-    return render_template('aqi_trees.html', areas=AREAS)
-
-
-@app.route('/about')
-def about():
-    """About page."""
-    return render_template('about.html', areas=AREAS)
-
-
-@app.route('/model-evaluation')
-def model_evaluation():
-    """Model evaluation dashboard."""
-    return render_template('model_evaluation.html', areas=AREAS)
-
-
-@app.route('/forecasting')
-def forecasting():
-    """Forecasting page."""
-    return render_template('forecasting.html', areas=AREAS)
 
 def _build_synthetic_aqi_history(city_id, days=100):
     """Build a smooth fallback AQI history when the API history is unavailable."""
@@ -486,7 +689,7 @@ def get_aqi_history_for_city(city_id, history_days=50):
             f"&appid={OPENWEATHER_API_KEY}"
         )
 
-        response = requests.get(url, timeout=20)
+        response = requests.get(url, timeout=OPENWEATHER_HISTORY_TIMEOUT, verify=OPENWEATHER_VERIFY_SSL)
         response.raise_for_status()
         data = response.json()
 
@@ -565,7 +768,7 @@ def get_aqi_trend(city_id):
         url = f"https://api.openweathermap.org/data/2.5/air_pollution/history?lat={coords['lat']}&lon={coords['lon']}&start={start_timestamp}&end={end_timestamp}&appid={OPENWEATHER_API_KEY}"
         
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=OPENWEATHER_TIMEOUT, verify=OPENWEATHER_VERIFY_SSL)
             response.raise_for_status()
             data = response.json()
             
@@ -723,30 +926,6 @@ def process_city_images(city_name, city_folder, source_prefix, output_prefix=Non
     all_stats['image_prefix'] = area_prefix
     ANALYSIS_DATA[city_name] = all_stats
 
-def aggregate_all_cities_data():
-    """Aggregate data from all processed cities"""
-    global ANALYSIS_DATA
-    
-    total_trees = 0
-    total_free_trees = 0
-    total_plantation_area = 0
-    cities_processed = 0
-    
-    for city_id in ANALYSIS_DATA:
-        data = ANALYSIS_DATA[city_id]
-        if data.get('image_count', 0) > 0:
-            total_trees += data.get('total_trees', 0)
-            total_free_trees += data.get('total_free_trees', 0)
-            total_plantation_area += data.get('total_plantation_area', 0)
-            cities_processed += 1
-    
-    return {
-        'total_trees': total_trees,
-        'total_free_trees': total_free_trees,
-        'total_plantation_area': total_plantation_area,
-        'cities_processed': cities_processed
-    }
-
 def startup_initialization():
     """Initialize data on app startup"""
     print("🚀 Starting GreenMadurai system initialization...")
@@ -811,6 +990,9 @@ def web_get_aqi(area_id):
         'no2': aqi_data.get('no2', 0),
         'so2': aqi_data.get('so2', 0),
         'co': aqi_data.get('co', 0),
+        'breakdown': aqi_data.get('breakdown', {}),
+        'adjustmentMeta': aqi_data.get('adjustment_meta', {}),
+        'source': aqi_data.get('source', 'unknown'),
         'timestamp': aqi_data.get('timestamp', '')
     })
 

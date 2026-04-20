@@ -40,11 +40,12 @@ export default function AqiTrees({ areas }) {
   }
 
   const getAqiColor = (value) => {
-    if (value <= 1) return { bg: '#dcfce7', text: '#15803d', label: 'Good' }
-    if (value <= 2) return { bg: '#fef3c7', text: '#b45309', label: 'Fair' }
-    if (value <= 3) return { bg: '#fed7aa', text: '#92400e', label: 'Moderate' }
-    if (value <= 4) return { bg: '#fecaca', text: '#7f1d1d', label: 'Poor' }
-    return { bg: '#f4c4f3', text: '#7c2d12', label: 'Very Poor' }
+    if (value <= 50) return { bg: '#dcfce7', text: '#15803d', label: 'Good' }
+    if (value <= 100) return { bg: '#ecfccb', text: '#3f6212', label: 'Satisfactory' }
+    if (value <= 200) return { bg: '#fef3c7', text: '#b45309', label: 'Moderately Polluted' }
+    if (value <= 300) return { bg: '#fed7aa', text: '#9a3412', label: 'Poor' }
+    if (value <= 400) return { bg: '#fecaca', text: '#7f1d1d', label: 'Very Poor' }
+    return { bg: '#e9d5ff', text: '#6b21a8', label: 'Severe' }
   }
 
   const currentColor = aqi ? getAqiColor(aqi.aqi) : null
@@ -58,7 +59,7 @@ export default function AqiTrees({ areas }) {
         accent="sky"
         stats={[
           { label: 'Selected area', value: areas.find((area) => area.id === selectedArea)?.name || 'Madurai' },
-          { label: 'AQI level', value: aqi ? getAqiColor(aqi.aqi).label : 'Loading' },
+          { label: 'AQI level', value: aqi ? (aqi.category || getAqiColor(aqi.aqi).label) : 'Loading' },
           { label: 'Trend points', value: trend.length || 0 },
           { label: 'Trees shown', value: trees.length || 0 },
         ]}
@@ -128,15 +129,16 @@ export default function AqiTrees({ areas }) {
             {/* AQI Scale Reference */}
             <Surface>
               <SectionHeading title="Understanding AQI levels" description="A reference strip to keep the color coding readable and intentional." />
-              <div className="grid gap-4 md:grid-cols-5">
+              <div className="grid gap-4 md:grid-cols-6">
                 {[
-                  { value: 1, label: 'Good', bg: '#dcfce7', color: '#15803d', range: '0-50 µg/m³' },
-                  { value: 2, label: 'Fair', bg: '#fef3c7', color: '#b45309', range: '50-100 µg/m³' },
-                  { value: 3, label: 'Moderate', bg: '#fed7aa', color: '#92400e', range: '100-150 µg/m³' },
-                  { value: 4, label: 'Poor', bg: '#fecaca', color: '#7f1d1d', range: '150-200 µg/m³' },
-                  { value: 5, label: 'Very Poor', bg: '#f4c4f3', color: '#7c2d12', range: '200+ µg/m³' },
+                  { label: 'Good', bg: '#dcfce7', color: '#15803d', range: '0-50 AQI' },
+                  { label: 'Satisfactory', bg: '#ecfccb', color: '#3f6212', range: '51-100 AQI' },
+                  { label: 'Moderately Polluted', bg: '#fef3c7', color: '#b45309', range: '101-200 AQI' },
+                  { label: 'Poor', bg: '#fed7aa', color: '#9a3412', range: '201-300 AQI' },
+                  { label: 'Very Poor', bg: '#fecaca', color: '#7f1d1d', range: '301-400 AQI' },
+                  { label: 'Severe', bg: '#e9d5ff', color: '#6b21a8', range: '401-500 AQI' },
                 ].map(level => (
-                  <div key={level.value} style={{ backgroundColor: level.bg }} className="rounded-2xl p-4 text-center">
+                  <div key={level.label} style={{ backgroundColor: level.bg }} className="rounded-2xl p-4 text-center">
                     <p className="font-extrabold" style={{ color: level.color }}>{level.label}</p>
                     <p className="mt-2 text-xs font-semibold" style={{ color: level.color }}>{level.range}</p>
                   </div>

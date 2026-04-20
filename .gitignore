@@ -50,6 +50,9 @@ pnpm-debug.log*
 static/images/*.png
 !static/images/.gitkeep
 
+# Backend runtime files
+backend/instance/
+
 # Logs
 *.log
 logs/

@@ -44,20 +44,13 @@ export default function Home({ areas }) {
     }
   }
 
-  const getAqiColor = (value) => {
-    if (value <= 1) return 'bg-green-100 text-green-800'
-    if (value <= 2) return 'bg-yellow-100 text-yellow-800'
-    if (value <= 3) return 'bg-orange-100 text-orange-800'
-    if (value <= 4) return 'bg-red-100 text-red-800'
-    return 'bg-purple-100 text-purple-800'
-  }
-
   const getAqiLabel = (value) => {
-    if (value <= 1) return 'Good'
-    if (value <= 2) return 'Fair'
-    if (value <= 3) return 'Moderate'
-    if (value <= 4) return 'Poor'
-    return 'Very Poor'
+    if (value <= 50) return 'Good'
+    if (value <= 100) return 'Satisfactory'
+    if (value <= 200) return 'Moderately Polluted'
+    if (value <= 300) return 'Poor'
+    if (value <= 400) return 'Very Poor'
+    return 'Severe'
   }
 
   return (
@@ -133,23 +126,23 @@ export default function Home({ areas }) {
           </div>
         </Surface>
 
-        <Surface className="flex flex-col justify-between bg-slate-950 text-white">
+        <Surface className="flex flex-col justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-300">Live status</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight">Current AQI for Madurai</h2>
-            <p className="mt-3 text-sm leading-7 text-slate-300">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700">Live status</p>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">Current AQI for Madurai</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
               The dashboard keeps fallback data ready, so the experience stays stable even when the API is busy.
             </p>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <MetricCard icon="💨" label="AQI state" value={aqi ? getAqiLabel(aqi.aqi) : 'Loading'} tone="emerald" />
+            <MetricCard icon="💨" label="AQI state" value={aqi ? (aqi.category || getAqiLabel(aqi.aqi)) : 'Loading'} tone="emerald" />
             <MetricCard icon="🌱" label="Tree coverage" value={`${(stats.totalTrees / 1000).toFixed(0)}K`} tone="sky" />
           </div>
 
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm font-semibold text-white">Quick note</p>
-            <p className="mt-2 text-sm leading-7 text-slate-300">
+          <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold text-slate-950">Quick note</p>
+            <p className="mt-2 text-sm leading-7 text-slate-600">
               Open the AQI page first if you want the most visual, high-signal screen in the app.
             </p>
           </div>

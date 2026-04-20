@@ -78,22 +78,6 @@ class AQIForcaster:
         self.predictions['holt_winters'] = cleaned_predictions.tolist()
         return self.predictions['holt_winters']
 
-    def forecast_lstm(self, forecast_days=7, lookback=14):
-        return self.forecast(forecast_days)
-
-    def forecast_arima(self, forecast_days=7, order=(1, 1, 1)):
-        return self.forecast(forecast_days)
-
-    def forecast_prophet(self, forecast_days=7):
-        return self.forecast(forecast_days)
-
-    def ensemble_forecast(self, forecast_days=7):
-        predictions = self.forecast(forecast_days)
-        return {
-            'dates': self.prepare_forecast_dates(forecast_days),
-            'holt_winters': predictions,
-        }
-
     def get_forecast_summary(self, forecast_days=7):
         series = self._clean_history()
         predictions = self.forecast(forecast_days)
